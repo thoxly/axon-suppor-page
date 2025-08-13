@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta
+      name="description"
+      content="Web site created using create-react-app"
+    />
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+    <!--
+      manifest.json provides metadata used when your web app is installed on a
+      user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
+    -->
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    <!--
+      Notice the use of %PUBLIC_URL% in the tags above.
+      It will be replaced with the URL of the `public` folder during the build.
+      Only files inside the `public` folder can be referenced from the HTML.
+
+      Unlike "/favicon.ico" or "favicon.ico", "%PUBLIC_URL%/favicon.ico" will
+      work correctly both with client-side routing and a non-root public URL.
+      Learn how to configure a non-root public URL by running `npm run build`.
+    -->
+    <title>React App</title>
+    
+    <!-- Telegram Web App API initialization -->
+    <script>
+      // Initialize Telegram Web App API with fallback
+      window.Telegram = window.Telegram || {};
+      window.Telegram.WebApp = window.Telegram.WebApp || {};
+      
+      // Mock Telegram Web App methods for development
+      if (!window.Telegram.WebApp.initData) {
+        window.Telegram.WebApp = {
+          initData: '',
+          initDataUnsafe: {},
+          version: '6.0',
+          platform: 'unknown',
+          colorScheme: 'light',
+          themeParams: {
+            bg_color: '#ffffff',
+            text_color: '#000000',
+            hint_color: '#999999',
+            link_color: '#2481cc',
+            button_color: '#2481cc',
+            button_text_color: '#ffffff'
+          },
+          isExpanded: false,
+          viewportHeight: window.innerHeight,
+          viewportStableHeight: window.innerHeight,
+          headerColor: '#ffffff',
+          backgroundColor: '#ffffff',
+          isClosingConfirmationEnabled: false,
+          backButton: {
+            isVisible: false,
+            onClick: function() {}
+          },
+          mainButton: {
+            text: '',
+            color: '#2481cc',
+            textColor: '#ffffff',
+            isVisible: false,
+            isProgressVisible: false,
+            isActive: true,
+            setText: function(text) { this.text = text; },
+            onClick: function(callback) { this.onClick = callback; },
+            show: function() { this.isVisible = true; },
+            hide: function() { this.isVisible = false; },
+            enable: function() { this.isActive = true; },
+            disable: function() { this.isActive = false; },
+            showProgress: function() { this.isProgressVisible = true; },
+            hideProgress: function() { this.isProgressVisible = false; }
+          },
+          HapticFeedback: {
+            impactOccurred: function() {},
+            notificationOccurred: function() {},
+            selectionChanged: function() {}
+          },
+          ready: function() {},
+          expand: function() {},
+          close: function() {},
+          isVersionAtLeast: function(version) { return true; },
+          setHeaderColor: function(color) { this.headerColor = color; },
+          setBackgroundColor: function(color) { this.backgroundColor = color; },
+          enableClosingConfirmation: function() { this.isClosingConfirmationEnabled = true; },
+          disableClosingConfirmation: function() { this.isClosingConfirmationEnabled = false; },
+          onEvent: function(eventType, eventHandler) {},
+          offEvent: function(eventType, eventHandler) {},
+          sendData: function(data) {},
+          switchInlineQuery: function(query, choose_chat_types) {},
+          openLink: function(url, options) { window.open(url, '_blank'); },
+          openTelegramLink: function(url) { window.open(url, '_blank'); },
+          openInvoice: function(url, callback) {},
+          showPopup: function(params, callback) {},
+          showAlert: function(message, callback) { alert(message); if (callback) callback(); },
+          showConfirm: function(message, callback) { 
+            const result = confirm(message); 
+            if (callback) callback(result); 
+          },
+          showScanQrPopup: function(params, callback) {},
+          closeScanQrPopup: function() {},
+          readTextFromClipboard: function(callback) { callback(''); },
+          requestWriteAccess: function(callback) { callback(true); },
+          requestContact: function(callback) {},
+          invokeCustomMethod: function(method, params, callback) {},
+          invokeCustomMethodUnsafe: function(method, params, callback) {},
+          isClosingConfirmationEnabled: false,
+          onClosingConfirmationChange: function(callback) {},
+          onViewportChange: function(callback) {},
+          onThemeChanged: function(callback) {},
+          onMainButtonClicked: function(callback) {},
+          onBackButtonClicked: function(callback) {},
+          onSettingsButtonClicked: function(callback) {},
+          onInvoiceClosed: function(callback) {},
+          onPopupClosed: function(callback) {},
+          onQrTextReceived: function(callback) {},
+          onClipboardTextReceived: function(callback) {},
+          onWriteAccessRequested: function(callback) {},
+          onContactRequested: function(callback) {},
+          onCustomMethodInvoked: function(callback) {},
+          onEvent: function(eventType, callback) {},
+          offEvent: function(eventType, callback) {}
+        };
+      }
+      
+      // Initialize Telegram Web App
+      if (window.Telegram.WebApp.ready) {
+        window.Telegram.WebApp.ready();
+      }
+      
+      // Handle Telegram Game Proxy errors
+      window.TelegramGameProxy = window.TelegramGameProxy || {
+        receiveEvent: function() {
+          // Mock implementation to prevent errors
+          console.log('TelegramGameProxy.receiveEvent called (mock)');
+        }
+      };
+    </script>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+    <!--
+      This HTML file is a template.
+      If you open it directly in the browser, you will see an empty page.
+
+      You can add webfonts, meta tags, or analytics to this file.
+      The build step will place the bundled scripts into the <body> tag.
+
+      To begin the development, run `npm start` or `yarn start`.
+      To create a production bundle, use `npm run build` or `yarn build`.
+    -->
+  </body>
+</html>

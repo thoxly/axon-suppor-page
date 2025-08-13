@@ -1,0 +1,14 @@
+tunnel: c79970a2-ade4-4338-9271-d6c5c61b5ae9
+credentials-file: /Users/shoxy/.cloudflared/c79970a2-ade4-4338-9271-d6c5c61b5ae9.json
+
+ingress:
+  - service: http://localhost:3003
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 10s
+      disableChunkedEncoding: false
+      http2Origin: false
+      proxyType: "http"
+
+  # Catch-all rule to respond with 404 for all other traffic
+  - service: http_status:404
