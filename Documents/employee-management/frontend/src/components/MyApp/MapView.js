@@ -11,6 +11,7 @@ import {
   Slide,
   IconButton,
   Fade,
+  Tooltip,
 } from '@mui/material';
 import {
   PlayArrow as PlayArrowIcon,
@@ -19,6 +20,7 @@ import {
   Assignment as TasksIcon,
   CheckCircleOutline as CompletedIcon,
   Add as FreeIcon,
+  PlayArrow as StartWorkIcon,
 } from '@mui/icons-material';
 import TelegramYandexMap from '../Map/TelegramYandexMap';
 import { formatDate } from '../../utils/dateUtils';
@@ -42,6 +44,9 @@ const MapView = ({
   onTaskClick,
   selectedCategory: externalSelectedCategory = null,
   telegramId,
+  // Новые пропсы для действий с задачами
+  onTaskAccept,
+  onTaskAcknowledge,
 }) => {
   const theme = useTheme();
   const [internalSelectedCategory, setInternalSelectedCategory] = useState(null);
@@ -523,10 +528,8 @@ const MapView = ({
                 {getTasksForCategory().map((task) => (
                   <Paper
                     key={task.id}
-                    onClick={() => onTaskClick && onTaskClick(task)}
                     sx={{
                       p: 2,
-                      cursor: 'pointer',
                       borderRadius: 2,
                       border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
                       transition: 'all 0.2s ease-in-out',
@@ -538,12 +541,107 @@ const MapView = ({
                     }}
                   >
                     <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                      <Typography 
+                        variant="subtitle2" 
+                        sx={{ 
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          flex: 1,
+                          '&:hover': {
+                            color: theme.palette.primary.main,
+                          }
+                        }}
+                        onClick={() => onTaskClick && onTaskClick(task)}
+                      >
                         {task.title}
                       </Typography>
-                      <StatusBadge status={task.status} />
+                      <Box display="flex" alignItems="center" gap={1}>
+                        <StatusBadge status={task.status} />
+                        
+                        {/* Кнопка "Ознакомлен" для назначенных задач */}
+                        {task.status === 'assigned' && (
+                          <Tooltip title="Ознакомлен">
+                            <IconButton
+                              size="small"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onTaskAcknowledge && onTaskAcknowledge(task.id, e);
+                              }}
+                              sx={{
+                                background: alpha(theme.palette.info.main, 0.1),
+                                color: theme.palette.info.main,
+                                '&:hover': {
+                                  background: alpha(theme.palette.info.main, 0.2),
+                                  transform: 'scale(1.1)',
+                                },
+                                transition: 'all 0.2s ease-in-out',
+                              }}
+                            >
+                              <CheckCircleIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+
+                        {/* Кнопка "Начать работу" для принятых задач */}
+                        {task.status === 'accepted' && (
+                          <Tooltip title="Начать работу">
+                            <IconButton
+                              size="small"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onStartWork && onStartWork(task.id, e);
+                              }}
+                              sx={{
+                                background: alpha(theme.palette.primary.main, 0.1),
+                                color: theme.palette.primary.main,
+                                '&:hover': {
+                                  background: alpha(theme.palette.primary.main, 0.2),
+                                  transform: 'scale(1.1)',
+                                },
+                                transition: 'all 0.2s ease-in-out',
+                              }}
+                            >
+                              <StartWorkIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+
+                        {/* Кнопка "Принять задачу" для свободных задач */}
+                        {selectedCategory === 'free' && task.status === 'free' && (
+                          <Tooltip title="Принять задачу">
+                            <IconButton
+                              size="small"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onTaskAccept && onTaskAccept(task.id, e);
+                              }}
+                              sx={{
+                                background: alpha(theme.palette.success.main, 0.1),
+                                color: theme.palette.success.main,
+                                '&:hover': {
+                                  background: alpha(theme.palette.success.main, 0.2),
+                                  transform: 'scale(1.1)',
+                                },
+                                transition: 'all 0.2s ease-in-out',
+                              }}
+                            >
+                              <CheckCircleIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                      </Box>
                     </Box>
-                    <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        color: theme.palette.text.secondary,
+                        cursor: 'pointer',
+                        '&:hover': {
+                          color: theme.palette.text.primary,
+                        }
+                      }}
+                      onClick={() => onTaskClick && onTaskClick(task)}
+                    >
                       {task.company_address || task.company?.name || 'Адрес не указан'}
                     </Typography>
                   </Paper>

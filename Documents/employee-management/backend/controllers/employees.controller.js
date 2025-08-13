@@ -357,50 +357,28 @@ const getEmployeePositions = async (req, res) => {
       return res.status(404).json({ message: 'Сотрудник не найден' });
     }
 
-    // Debug: проверим, есть ли вообще данные в таблице positions
-    const debugPositions = await db.query('SELECT COUNT(*) as total FROM positions');
-    console.log('Total positions in database:', debugPositions.rows[0]);
-
-    // Debug: проверим все сессии в базе
-    const allSessions = await db.query('SELECT id, user_id, start_time, end_time FROM sessions LIMIT 10');
-    console.log('All sessions in database:', allSessions.rows);
-
-    // Debug: проверим всех пользователей и их сессии
-    const usersWithSessions = await db.query(`
-      SELECT u.id as user_id, u.full_name, u.email, s.id as session_id, s.start_time, s.end_time
-      FROM users u
-      LEFT JOIN sessions s ON u.id = s.user_id
-      WHERE u.company_id = $1
-      ORDER BY u.id, s.start_time
-    `, [req.user.company_id]);
-    console.log('Users and their sessions:', usersWithSessions.rows);
-
-    // Debug: проверим сессии для этого пользователя
-    const debugSessions = await db.query('SELECT id, user_id, start_time, end_time FROM sessions WHERE user_id = $1', [id]);
-    console.log('Sessions for user:', debugSessions.rows);
-
-    // Debug: проверим позиции без JOIN с сессиями
-    const allPositions = await db.query('SELECT id, session_id, latitude, longitude, timestamp FROM positions LIMIT 5');
-    console.log('Sample positions from database:', allPositions.rows);
-
-    // Debug: проверим позиции для этого пользователя (без фильтра по времени)
-    const debugUserPositions = await db.query(`
-      SELECT p.latitude, p.longitude, p.timestamp, s.id as session_id, s.user_id
+    // Получаем маршруты, сгруппированные по задачам и сессиям
+    const query = `
+      SELECT 
+        p.latitude,
+        p.longitude,
+        p.timestamp,
+        s.id as session_id,
+        s.start_time as session_start,
+        s.end_time as session_end,
+        t.id as task_id,
+        t.title as task_title,
+        t.status as task_status,
+        CASE 
+          WHEN t.id IS NOT NULL THEN 'task'
+          ELSE 'session'
+        END as route_type
       FROM positions p
       JOIN sessions s ON p.session_id = s.id
-      WHERE s.user_id = $1
-      ORDER BY p.timestamp DESC
-      LIMIT 5
-    `, [id]);
-    console.log('Recent positions for user:', debugUserPositions.rows);
-
-    // Получаем позиции сотрудника за указанный период
-    const query = `
-      SELECT latitude, longitude, timestamp 
-      FROM positions
-      WHERE user_id = $1 
-      AND timestamp BETWEEN $2 AND $3
-      ORDER BY timestamp ASC
+      LEFT JOIN tasks t ON s.task_id = t.id
+      WHERE s.user_id = $1 
+      AND p.timestamp BETWEEN $2 AND $3
+      ORDER BY s.start_time ASC, p.timestamp ASC
     `;
     
     console.log('SQL Query:', query);
@@ -411,14 +389,64 @@ const getEmployeePositions = async (req, res) => {
     console.log('Positions query result:', positions.rows);
     console.log('Number of positions found:', positions.rows.length);
 
-    // Форматируем данные для фронтенда (координаты уже в правильном формате [latitude, longitude])
-    const route = positions.rows.map(pos => [pos.latitude, pos.longitude]);
+    // Группируем позиции по задачам и сессиям
+    const routesByTask = {};
+    const routesBySession = {};
 
-    console.log('Formatted route:', route);
+    positions.rows.forEach(pos => {
+      if (pos.task_id) {
+        // Группируем по задаче
+        if (!routesByTask[pos.task_id]) {
+          routesByTask[pos.task_id] = {
+            task_id: pos.task_id,
+            task_title: pos.task_title,
+            task_status: pos.task_status,
+            session_id: pos.session_id,
+            session_start: pos.session_start,
+            session_end: pos.session_end,
+            route_type: 'task',
+            positions: []
+          };
+        }
+        routesByTask[pos.task_id].positions.push({
+          latitude: pos.latitude,
+          longitude: pos.longitude,
+          timestamp: pos.timestamp
+        });
+      } else {
+        // Группируем по сессии (без задачи)
+        if (!routesBySession[pos.session_id]) {
+          routesBySession[pos.session_id] = {
+            session_id: pos.session_id,
+            session_start: pos.session_start,
+            session_end: pos.session_end,
+            route_type: 'session',
+            positions: []
+          };
+        }
+        routesBySession[pos.session_id].positions.push({
+          latitude: pos.latitude,
+          longitude: pos.longitude,
+          timestamp: pos.timestamp
+        });
+      }
+    });
+
+    // Объединяем все маршруты
+    const allRoutes = [
+      ...Object.values(routesByTask),
+      ...Object.values(routesBySession)
+    ];
+
+    // Сортируем по времени начала сессии
+    allRoutes.sort((a, b) => new Date(a.session_start) - new Date(b.session_start));
+
+    console.log('Grouped routes:', allRoutes);
 
     res.json({ 
-      route,
-      timestamps: positions.rows.map(pos => pos.timestamp)
+      routes: allRoutes,
+      total_positions: positions.rows.length,
+      routes_count: allRoutes.length
     });
   } catch (error) {
     console.error('Error getting employee positions:', error);

@@ -486,5 +486,11 @@ export const api = {
                 method: 'GET',
             });
         },
+        // Новый метод для получения текущей позиции сотрудника по ID
+        getCurrentPositionById: (employeeId) => {
+            return apiRequest(`/api/sessions/current-position?employee_id=${employeeId}`, {
+                method: 'GET',
+            });
+        },
     },
 }; 

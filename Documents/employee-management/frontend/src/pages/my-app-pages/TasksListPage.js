@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   Box,
   Container,
@@ -105,38 +105,38 @@ const TasksListPage = () => {
     }
   }, [searchParams]);
 
-  useEffect(() => {
-    const fetchTasks = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        const telegramUser = getTelegramUser();
-        if (!telegramUser) {
-          throw new Error('Не удалось получить данные пользователя Telegram');
-        }
-
-        const tasksResponse = await api.tasks.getForMiniApp(telegramUser.id);
-        setTasks(tasksResponse);
-
-        // Проверяем активную сессию локации
-        await checkActiveLocationSession(telegramUser);
-
-        // Получаем реальную позицию пользователя
-        await fetchCurrentPosition(telegramUser);
-
-      } catch (err) {
-        console.error('Failed to fetch tasks:', err);
-        setError('Не удалось загрузить задачи');
-      } finally {
-        setLoading(false);
+  const fetchTasks = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const telegramUser = getTelegramUser();
+      if (!telegramUser) {
+        throw new Error('Не удалось получить данные пользователя Telegram');
       }
-    };
 
+      const tasksResponse = await api.tasks.getForMiniApp(telegramUser.id);
+      setTasks(tasksResponse);
+
+      // Проверяем активную сессию локации
+      await checkActiveLocationSession(telegramUser);
+
+      // Получаем реальную позицию пользователя
+      await fetchCurrentPosition(telegramUser);
+
+    } catch (err) {
+      console.error('Failed to fetch tasks:', err);
+      setError('Не удалось загрузить задачи');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
     if (isAuthenticated) {
       fetchTasks();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, fetchTasks]);
 
   // Эффект для периодического обновления позиции
   useEffect(() => {
@@ -288,6 +288,42 @@ const TasksListPage = () => {
     // Передаем информацию о категории для правильного возврата
     console.log('TasksListPage - handleTaskClick - selectedCategory:', selectedCategory);
     navigate(`/my-app/task-details/${clickedTask.id}?category=${selectedCategory}`);
+  };
+
+  const handleTaskAccept = async (taskId, event) => {
+    event.stopPropagation();
+    try {
+      const telegramUser = getTelegramUser();
+      await api.tasks.takeFree(taskId, telegramUser.id);
+      
+      // Обновляем список задач
+      await fetchTasks();
+      
+      // Показываем уведомление об успехе
+      triggerHapticSelection();
+      
+    } catch (err) {
+      console.error('Failed to accept task:', err);
+      setError(err.message || 'Ошибка при принятии задачи');
+    }
+  };
+
+  const handleTaskAcknowledge = async (taskId, event) => {
+    event.stopPropagation();
+    try {
+      const telegramUser = getTelegramUser();
+      await api.tasks.acceptAssigned(taskId, telegramUser.id);
+      
+      // Обновляем список задач
+      await fetchTasks();
+      
+      // Показываем уведомление об успехе
+      triggerHapticSelection();
+      
+    } catch (err) {
+      console.error('Failed to acknowledge task:', err);
+      setError(err.message || 'Ошибка при подтверждении ознакомления');
+    }
   };
 
   const handleCategoryChange = (category) => {
@@ -512,6 +548,8 @@ const TasksListPage = () => {
         completedTasks={completedTasks}
         onTaskCategoryClick={handleTaskCategoryClick}
         onTaskClick={handleTaskClick}
+        onTaskAccept={handleTaskAccept}
+        onTaskAcknowledge={handleTaskAcknowledge}
         selectedCategory={selectedCategory}
         telegramId={getTelegramUser()?.id}
       />

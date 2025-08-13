@@ -7,13 +7,23 @@ import {
   MenuItem,
   Alert,
   TextField,
+  Typography,
+  Chip,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
 } from '@mui/material';
+import { ExpandMore as ExpandMoreIcon } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { ru } from 'date-fns/locale';
-import { differenceInDays, startOfDay, endOfDay } from 'date-fns';
+import { differenceInDays, startOfDay, endOfDay, format } from 'date-fns';
 import YandexMap from '../Map/YandexMap';
+import MapLegend from '../Map/MapLegend';
+import MapInfo from '../Map/MapInfo';
+import RouteStats from './RouteStats';
+import { calculateRouteCenter, calculateOptimalZoom } from '../../utils/mapUtils';
 import { api } from '../../utils/api';
 
 const PeriodTracker = () => {
@@ -21,7 +31,7 @@ const PeriodTracker = () => {
   const [selectedEmployee, setSelectedEmployee] = useState('');
   const [startDate, setStartDate] = useState(startOfDay(new Date()));
   const [endDate, setEndDate] = useState(endOfDay(new Date()));
-  const [route, setRoute] = useState([]);
+  const [routes, setRoutes] = useState([]);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [noDataAlert, setNoDataAlert] = useState(null);
@@ -52,8 +62,8 @@ const PeriodTracker = () => {
 
   const handleEmployeeChange = (event) => {
     setSelectedEmployee(event.target.value);
-    // Reset route when employee changes
-    setRoute([]);
+    // Reset routes when employee changes
+    setRoutes([]);
   };
 
   const handleDateChange = (newStartDate, newEndDate) => {
@@ -81,7 +91,7 @@ const PeriodTracker = () => {
     }
   };
 
-  const fetchRoute = async () => {
+  const fetchRoutes = async () => {
     try {
       setLoading(true);
       setError(null);
@@ -90,30 +100,19 @@ const PeriodTracker = () => {
       const response = await api.employees.getPositions(selectedEmployee, startDate, endDate);
       
       console.log('🔍 API Response:', response);
-      console.log('🔍 Route data:', response.route);
-      console.log('🔍 Route length:', response.route?.length);
+      console.log('🔍 Routes data:', response.routes);
+      console.log('🔍 Routes count:', response.routes?.length);
       
-      if (response.route.length === 0) {
+      if (!response.routes || response.routes.length === 0) {
         setNoDataAlert(`Нет данных о перемещениях сотрудника за выбранный период ${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`);
+        setRoutes([]);
+        return;
       }
       
-      // Используем координаты как есть (они уже в правильном формате [latitude, longitude])
-      const transformedRoute = response.route;
-      console.log('🔍 Route from API:', transformedRoute);
-      console.log('🔍 Route length:', transformedRoute.length);
-      
-      // Check if all coordinates are the same
-      const uniqueCoordinates = new Set(transformedRoute.map(coord => `${coord[0]},${coord[1]}`));
-      console.log('🔍 Unique coordinates:', uniqueCoordinates.size);
-      
-      if (transformedRoute.length > 0 && uniqueCoordinates.size === 1) {
-        setNoDataAlert('Все точки маршрута находятся в одном месте. Линия не будет отображаться.');
-      }
-      
-      setRoute(transformedRoute);
+      setRoutes(response.routes);
     } catch (err) {
-      console.error('Error fetching route:', err);
-      setError('Не удалось загрузить маршрут');
+      console.error('Error fetching routes:', err);
+      setError('Не удалось загрузить маршруты');
     } finally {
       setLoading(false);
     }
@@ -121,17 +120,61 @@ const PeriodTracker = () => {
 
   useEffect(() => {
     if (selectedEmployee && validateDateRange() && startDate && endDate) {
-      fetchRoute();
+      fetchRoutes();
     }
   }, [selectedEmployee, startDate, endDate]);
 
-  // Calculate map center based on route points
+  // Calculate map center based on all route points
   const getMapCenter = () => {
-    if (route.length === 0) return [55.751244, 37.618423]; // Default to Moscow
+    return calculateRouteCenter(routes);
+  };
+
+  // Calculate optimal zoom for routes
+  const getMapZoom = () => {
+    return calculateOptimalZoom(routes, 9);
+  };
+
+  // Получаем статистику по маршрутам
+  const getRouteStats = () => {
+    const taskRoutes = routes.filter(route => route.route_type === 'task');
+    const sessionRoutes = routes.filter(route => route.route_type === 'session');
     
-    const latSum = route.reduce((sum, point) => sum + point[0], 0);
-    const lonSum = route.reduce((sum, point) => sum + point[1], 0);
-    return [latSum / route.length, lonSum / route.length];
+    return {
+      totalRoutes: routes.length,
+      taskRoutes: taskRoutes.length,
+      sessionRoutes: sessionRoutes.length,
+      totalPositions: routes.reduce((sum, route) => sum + route.positions.length, 0)
+    };
+  };
+
+  const stats = getRouteStats();
+
+  // Функция для получения цвета статуса задачи
+  const getTaskStatusColor = (status) => {
+    switch (status) {
+      case 'completed':
+        return 'success';
+      case 'in_progress':
+        return 'warning';
+      case 'pending':
+        return 'info';
+      default:
+        return 'default';
+    }
+  };
+
+  // Функция для получения русского названия статуса
+  const getTaskStatusLabel = (status) => {
+    switch (status) {
+      case 'completed':
+        return 'Завершена';
+      case 'in_progress':
+        return 'Выполняется';
+      case 'pending':
+        return 'Ожидает';
+      default:
+        return status;
+    }
   };
 
   return (
@@ -204,14 +247,84 @@ const PeriodTracker = () => {
         </Alert>
       )}
 
+      {/* Статистика маршрутов */}
+      <RouteStats routes={routes} />
+
+      {/* Список маршрутов */}
+      {routes.length > 0 && (
+        <Accordion>
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Typography variant="h6">Детали маршрутов ({routes.length})</Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {routes.map((route, index) => (
+                <Box 
+                  key={index} 
+                  sx={{ 
+                    p: 2, 
+                    border: 1, 
+                    borderColor: 'divider', 
+                    borderRadius: 1,
+                    backgroundColor: route.route_type === 'task' ? 'background.paper' : 'grey.50'
+                  }}
+                >
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                    <Typography variant="subtitle1">
+                      {route.route_type === 'task' ? 'Задача' : 'Без задачи'} #{index + 1}
+                    </Typography>
+                    <Chip 
+                      label={route.route_type === 'task' ? 'Задача' : 'Без задачи'} 
+                      color={route.route_type === 'task' ? 'primary' : 'secondary'}
+                      size="small"
+                    />
+                  </Box>
+                  
+                  {route.route_type === 'task' && (
+                    <Box sx={{ mb: 1 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        <strong>Название:</strong> {route.task_title}
+                      </Typography>
+                      <Chip 
+                        label={getTaskStatusLabel(route.task_status)} 
+                        color={getTaskStatusColor(route.task_status)}
+                        size="small"
+                        sx={{ mt: 0.5 }}
+                      />
+                    </Box>
+                  )}
+                  
+                  <Box sx={{ display: 'flex', gap: 2, mb: 1 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>Начало:</strong> {format(new Date(route.session_start), 'dd.MM.yyyy HH:mm')}
+                    </Typography>
+                    {route.session_end && (
+                      <Typography variant="body2" color="text.secondary">
+                        <strong>Конец:</strong> {format(new Date(route.session_end), 'dd.MM.yyyy HH:mm')}
+                      </Typography>
+                    )}
+                  </Box>
+                  
+                  <Typography variant="body2" color="text.secondary">
+                    <strong>Точек маршрута:</strong> {route.positions.length}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+          </AccordionDetails>
+        </Accordion>
+      )}
+
+      {/* Легенда карты */}
+      <MapLegend routes={routes} />
+
+      {/* Информация о карте */}
+      <MapInfo routes={routes} />
+
       <YandexMap 
-        route={route}
+        routes={routes}
         center={getMapCenter()}
-        points={route.map((coords, index) => ({
-          coordinates: coords,
-          description: `Точка ${index + 1}`
-        }))}
-        zoom={route.length > 0 ? 12 : 9}
+        zoom={getMapZoom()}
       />
     </Box>
   );

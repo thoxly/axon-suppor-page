@@ -88,6 +88,27 @@ const sessionsController = {
                 return res.status(401).json({ message: 'Требуется авторизация' });
             }
 
+            // Проверяем, запрашивается ли позиция конкретного сотрудника
+            const { employee_id } = req.query;
+            const targetUserId = employee_id ? parseInt(employee_id) : req.user.id;
+
+            // Если запрашивается позиция другого сотрудника, проверяем права доступа
+            if (employee_id && targetUserId !== req.user.id) {
+                // Проверяем, что текущий пользователь - менеджер и сотрудник принадлежит той же компании
+                if (req.user.role !== 'manager') {
+                    return res.status(403).json({ message: 'Недостаточно прав для просмотра позиции другого сотрудника' });
+                }
+
+                const employeeCheck = await db.query(
+                    'SELECT id FROM users WHERE id = $1 AND company_id = $2',
+                    [targetUserId, req.user.company_id]
+                );
+
+                if (employeeCheck.rows.length === 0) {
+                    return res.status(404).json({ message: 'Сотрудник не найден' });
+                }
+            }
+
             const query = `
                 SELECT 
                     p.latitude,
@@ -101,12 +122,12 @@ const sessionsController = {
                 FROM positions p
                 JOIN sessions s ON p.session_id = s.id
                 LEFT JOIN tasks t ON s.task_id = t.id
-                WHERE p.user_id = $1 AND s.is_active = true
+                WHERE s.user_id = $1 AND s.is_active = true
                 ORDER BY p.timestamp DESC
                 LIMIT 1
             `;
             
-            const { rows } = await db.query(query, [req.user.id]);
+            const { rows } = await db.query(query, [targetUserId]);
             
             if (rows.length === 0) {
                 return res.json({ 
