@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { Box, Typography, Paper, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
+import { Box, Typography, Paper, FormControl, InputLabel, Select, MenuItem, Tabs, Tab } from '@mui/material';
 import PeriodTracker from '../components/Tracker/PeriodTracker';
 import TaskTracker from '../components/Tracker/TaskTracker';
 import OnlineTracker from '../components/Tracker/OnlineTracker';
+import CoordinateProcessingSettings from '../components/Tracker/CoordinateProcessingSettings';
 
 const TRACKER_MODES = {
   PERIOD: 'period',
   TASK: 'task',
-  ONLINE: 'online'
+  ONLINE: 'online',
+  SETTINGS: 'settings'
 };
 
 const TrackerPage = () => {
@@ -25,6 +27,8 @@ const TrackerPage = () => {
         return <TaskTracker />;
       case TRACKER_MODES.ONLINE:
         return <OnlineTracker />;
+      case TRACKER_MODES.SETTINGS:
+        return <CoordinateProcessingSettings />;
       default:
         return null;
     }
@@ -37,15 +41,16 @@ const TrackerPage = () => {
           Трекер
         </Typography>
         <FormControl sx={{ minWidth: 200 }}>
-          <InputLabel>Режим </InputLabel>
+          <InputLabel>Режим</InputLabel>
           <Select
             value={mode}
             onChange={handleModeChange}
-            label="Режим "
+            label="Режим"
           >
             <MenuItem value={TRACKER_MODES.PERIOD}>За период</MenuItem>
             <MenuItem value={TRACKER_MODES.TASK}>По задаче</MenuItem>
             <MenuItem value={TRACKER_MODES.ONLINE}>Онлайн</MenuItem>
+            <MenuItem value={TRACKER_MODES.SETTINGS}>Настройки обработки</MenuItem>
           </Select>
         </FormControl>
       </Box>

@@ -339,7 +339,21 @@ const tasksController = {
     // Создание новой задачи
     async createTask(req, res) {
         try {
-            const { title, description, assigned_to, requires_verification = true, address } = req.body;
+            const { 
+                title, 
+                description, 
+                assigned_to, 
+                requires_verification = true, 
+                address,
+                start_point_latitude,
+                start_point_longitude,
+                finish_point_latitude,
+                finish_point_longitude,
+                expected_latitude,
+                expected_longitude,
+                expected_coordinates_source = 'manual',
+                max_deviation_km = 5.0
+            } = req.body;
 
             // Проверяем, что назначаемый сотрудник принадлежит той же компании
             if (assigned_to) {
@@ -371,9 +385,13 @@ const tasksController = {
                 INSERT INTO tasks (
                     title, description, status, company_id, 
                     assigned_to, created_by, requires_verification,
-                    start_date, end_date, address
+                    start_date, end_date, address,
+                    start_point_latitude, start_point_longitude,
+                    finish_point_latitude, finish_point_longitude,
+                    expected_latitude, expected_longitude,
+                    expected_coordinates_source, max_deviation_km
                 )
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
                 RETURNING *, 
                     (SELECT full_name FROM users WHERE id = assigned_to) as assigned_to_name,
                     (SELECT username FROM users WHERE id = assigned_to) as assigned_to_username,
@@ -392,7 +410,15 @@ const tasksController = {
                 requires_verification,
                 req.body.start_date,
                 req.body.end_date,
-                address
+                address,
+                start_point_latitude,
+                start_point_longitude,
+                finish_point_latitude,
+                finish_point_longitude,
+                expected_latitude,
+                expected_longitude,
+                expected_coordinates_source,
+                max_deviation_km
             ];
 
             const { rows } = await db.query(query, values);
@@ -438,7 +464,21 @@ const tasksController = {
     async updateTask(req, res) {
         try {
             const { id } = req.params;
-            const { title, description, assigned_to, requires_verification, address } = req.body;
+            const { 
+                title, 
+                description, 
+                assigned_to, 
+                requires_verification, 
+                address,
+                start_point_latitude,
+                start_point_longitude,
+                finish_point_latitude,
+                finish_point_longitude,
+                expected_latitude,
+                expected_longitude,
+                expected_coordinates_source,
+                max_deviation_km
+            } = req.body;
 
             // Проверяем существование задачи и права доступа
             const taskCheck = await db.query(
@@ -472,8 +512,16 @@ const tasksController = {
                     start_date = COALESCE($5, start_date),
                     end_date = COALESCE($6, end_date),
                     address = COALESCE($7, address),
+                    start_point_latitude = COALESCE($8, start_point_latitude),
+                    start_point_longitude = COALESCE($9, start_point_longitude),
+                    finish_point_latitude = COALESCE($10, finish_point_latitude),
+                    finish_point_longitude = COALESCE($11, finish_point_longitude),
+                    expected_latitude = COALESCE($12, expected_latitude),
+                    expected_longitude = COALESCE($13, expected_longitude),
+                    expected_coordinates_source = COALESCE($14, expected_coordinates_source),
+                    max_deviation_km = COALESCE($15, max_deviation_km),
                     updated_at = CURRENT_TIMESTAMP
-                WHERE id = $8 AND company_id = $9
+                WHERE id = $16 AND company_id = $17
                 RETURNING *, 
                     (SELECT full_name FROM users WHERE id = assigned_to) as assigned_to_name,
                     (SELECT username FROM users WHERE id = assigned_to) as assigned_to_username,
@@ -489,6 +537,14 @@ const tasksController = {
                 req.body.start_date,
                 req.body.end_date,
                 address,
+                start_point_latitude,
+                start_point_longitude,
+                finish_point_latitude,
+                finish_point_longitude,
+                expected_latitude,
+                expected_longitude,
+                expected_coordinates_source,
+                max_deviation_km,
                 id,
                 req.user.company_id
             ];
@@ -834,33 +890,81 @@ const tasksController = {
                 return res.status(400).json({ message: 'Можно начать работу только с принятой задачи' });
             }
 
-            // Обновляем статус задачи на 'in-progress'
-            const updateQuery = `
-                UPDATE tasks 
-                SET status = 'in-progress', updated_at = CURRENT_TIMESTAMP
-                WHERE id = $1
-                RETURNING *, 
-                    (SELECT full_name FROM users WHERE id = assigned_to) as assigned_to_name,
-                    (SELECT username FROM users WHERE id = assigned_to) as assigned_to_username,
-                    (SELECT email FROM users WHERE id = assigned_to) as assigned_to_email,
-                    (SELECT full_name FROM users WHERE id = created_by) as created_by_name
+            // Получаем текущую позицию пользователя для установки точки старта
+            const positionQuery = `
+                SELECT latitude, longitude
+                FROM positions 
+                WHERE user_id = $1 
+                ORDER BY timestamp DESC 
+                LIMIT 1
             `;
             
-            const updateResult = await db.query(updateQuery, [id]);
-
-            // Привязываем задачу к активной сессии
-            const session = sessionResult.rows[0];
-            if (session.task_id !== parseInt(id)) {
-                const updateSessionQuery = `
-                    UPDATE sessions 
-                    SET task_id = $1, updated_at = CURRENT_TIMESTAMP
-                    WHERE id = $2
-                    RETURNING id, user_id, task_id, start_time, is_active
-                `;
-                await db.query(updateSessionQuery, [id, session.id]);
+            const positionResult = await db.query(positionQuery, [req.user.id]);
+            let startPointLatitude = null;
+            let startPointLongitude = null;
+            
+            if (positionResult.rows.length > 0) {
+                startPointLatitude = positionResult.rows[0].latitude;
+                startPointLongitude = positionResult.rows[0].longitude;
+                console.log(`📍 Setting start point for task ${id}: ${startPointLatitude}, ${startPointLongitude}`);
+            } else {
+                console.log(`⚠️ No position data found for user ${req.user.id}, start point will be null`);
             }
 
-            res.json(updateResult.rows[0]);
+            // Начинаем транзакцию
+            const client = await db.connect();
+            try {
+                await client.query('BEGIN');
+
+                // Обновляем статус задачи на 'in-progress' и устанавливаем точку старта
+                const updateQuery = `
+                    UPDATE tasks 
+                    SET status = 'in-progress', 
+                        start_point_latitude = COALESCE($2, start_point_latitude),
+                        start_point_longitude = COALESCE($3, start_point_longitude),
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = $1
+                    RETURNING *, 
+                        (SELECT full_name FROM users WHERE id = assigned_to) as assigned_to_name,
+                        (SELECT username FROM users WHERE id = assigned_to) as assigned_to_username,
+                        (SELECT email FROM users WHERE id = assigned_to) as assigned_to_email,
+                        (SELECT full_name FROM users WHERE id = created_by) as created_by_name
+                `;
+                
+                const updateResult = await client.query(updateQuery, [id, startPointLatitude, startPointLongitude]);
+
+                // Завершаем предыдущую активную сессию (если она была привязана к другой задаче)
+                const session = sessionResult.rows[0];
+                if (session.task_id && session.task_id !== parseInt(id)) {
+                    const endPreviousSessionQuery = `
+                        UPDATE sessions 
+                        SET end_time = CURRENT_TIMESTAMP, is_active = false, updated_at = CURRENT_TIMESTAMP
+                        WHERE id = $1
+                        RETURNING id
+                    `;
+                    await client.query(endPreviousSessionQuery, [session.id]);
+                    console.log(`🏁 Ended previous session ${session.id} for task ${session.task_id}`);
+                }
+
+                // Создаем новую сессию для текущей задачи
+                const createNewSessionQuery = `
+                    INSERT INTO sessions (user_id, task_id, start_time, is_active)
+                    VALUES ($1, $2, CURRENT_TIMESTAMP, true)
+                    RETURNING id, user_id, task_id, start_time, is_active
+                `;
+                
+                const newSessionResult = await client.query(createNewSessionQuery, [req.user.id, id]);
+                console.log(`✅ Created new session ${newSessionResult.rows[0].id} for task ${id}`);
+
+                await client.query('COMMIT');
+
+                res.json(updateResult.rows[0]);
+            } catch (error) {
+                await client.query('ROLLBACK');
+                throw error;
+            } finally {
+                client.release();
+            }
         } catch (error) {
             console.error('Error starting work:', error);
             res.status(500).json({ message: 'Ошибка при начале работы над задачей' });
@@ -929,6 +1033,17 @@ const tasksController = {
                 `;
                 
                 const updateResult = await client.query(updateQuery, [newStatus, result, id]);
+
+                // Завершаем активную сессию для этой задачи
+                const endSessionQuery = `
+                    UPDATE sessions 
+                    SET end_time = CURRENT_TIMESTAMP, is_active = false, updated_at = CURRENT_TIMESTAMP
+                    WHERE task_id = $1 AND user_id = $2 AND is_active = true
+                    RETURNING id
+                `;
+                
+                const sessionResult = await client.query(endSessionQuery, [id, req.user.id]);
+                console.log(`🏁 Ended ${sessionResult.rows.length} sessions for completed task ${id}`);
 
                 // Загружаем фотографии в S3 (если есть)
                 if (photos.length > 0) {

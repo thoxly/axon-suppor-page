@@ -41,8 +41,15 @@ const handleTaskAcceptance = async (ctx, taskId) => {
         // Обновляем статус задачи
         await taskService.updateTaskStatus(taskId, 'in-progress', userId);
         
-        // Привязываем задачу к активной сессии
-        await locationService.attachTaskToSession(activeSession.id, taskId);
+        // Завершаем предыдущую сессию (если она была привязана к другой задаче)
+        if (activeSession.task_id && activeSession.task_id !== taskId) {
+            await locationService.endSession(activeSession.id);
+            console.log(`🏁 Ended previous session ${activeSession.id} for task ${activeSession.task_id}`);
+        }
+        
+        // Создаем новую сессию для текущей задачи
+        const newSession = await locationService.createSession(userId, taskId);
+        console.log(`✅ Created new session ${newSession.id} for task ${taskId}`);
 
         // Отправляем сообщение об успешном принятии задачи
         await ctx.reply(`✅ Задача "${task.title}" взята в работу!

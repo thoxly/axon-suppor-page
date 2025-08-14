@@ -108,40 +108,57 @@ const TaskTracker = () => {
       setError(null);
       setNoDataAlert(null);
       
-      // Получаем маршруты за последние 30 дней для выбранной задачи
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - 30);
+      // Получаем сессии для задачи
+      console.log('Fetching sessions for task:', selectedTask);
+      const sessionsResponse = await api.sessions.getTaskSessions(selectedTask);
       
-      const response = await api.employees.getPositions(selectedEmployee, startDate, endDate);
+      if (!sessionsResponse.sessions || sessionsResponse.sessions.length === 0) {
+        setNoDataAlert('Нет данных о сессиях для выбранной задачи');
+        setRoutes([]);
+        return;
+      }
       
-
+      // Получаем позиции для каждой сессии
+      const routesData = [];
       
-      if (!response.routes || response.routes.length === 0) {
+      for (const session of sessionsResponse.sessions) {
+        try {
+          // Получаем позиции для сессии
+          const positionsResponse = await api.sessions.getSessionPositions(session.id);
+          
+          if (positionsResponse.positions && positionsResponse.positions.length > 0) {
+            const route = {
+              task_id: parseInt(selectedTask),
+              task_title: tasks.find(t => t.id === parseInt(selectedTask))?.title || 'Задача',
+              task_status: tasks.find(t => t.id === parseInt(selectedTask))?.status || 'unknown',
+              route_type: 'task',
+              session_id: session.id,
+              session_start: session.start_time,
+              session_end: session.end_time,
+              positions: positionsResponse.positions.map(pos => ({
+                latitude: pos.latitude,
+                longitude: pos.longitude,
+                timestamp: pos.timestamp
+              }))
+            };
+            
+            routesData.push(route);
+          }
+        } catch (sessionError) {
+          console.error(`Error fetching positions for session ${session.id}:`, sessionError);
+        }
+      }
+      
+      if (routesData.length === 0) {
         setNoDataAlert('Нет данных о перемещениях для выбранной задачи');
         setRoutes([]);
         return;
       }
       
-      // Фильтруем маршруты только для выбранной задачи
-      console.log('All routes:', response.routes);
-      console.log('Selected task ID:', selectedTask);
-      
-      const taskRoutes = response.routes.filter(route => {
-        console.log(`Route: route_type=${route.route_type}, task_id=${route.task_id}, selectedTask=${selectedTask}`);
-        return route.route_type === 'task' && route.task_id === parseInt(selectedTask);
-      });
-      
-      console.log('Filtered task routes:', taskRoutes);
-      
-      if (taskRoutes.length === 0) {
-        setNoDataAlert('Нет данных о перемещениях для выбранной задачи');
-        setRoutes([]);
-        return;
-      }
-      
-      setRoutes(taskRoutes);
+      console.log('Task routes:', routesData);
+      setRoutes(routesData);
     } catch (err) {
+      console.error('Error fetching task routes:', err);
       setError('Не удалось загрузить маршруты задачи');
     } finally {
       setLoading(false);
@@ -167,15 +184,35 @@ const TaskTracker = () => {
 
   // Получаем статистику по маршрутам задачи
   const getTaskRouteStats = () => {
+    if (routes.length === 0) {
+      return {
+        totalRoutes: 0,
+        totalPositions: 0,
+        totalDistance: 0,
+        totalTime: 0,
+        totalSessions: 0
+      };
+    }
+
+    let totalPositions = 0;
+    let totalTime = 0;
+    let totalSessions = routes.length;
+
+    routes.forEach(route => {
+      totalPositions += route.positions.length;
+      
+      if (route.session_start && route.session_end) {
+        const sessionTime = new Date(route.session_end) - new Date(route.session_start);
+        totalTime += sessionTime;
+      }
+    });
+    
     return {
       totalRoutes: routes.length,
-      totalPositions: routes.reduce((sum, route) => sum + route.positions.length, 0),
+      totalPositions: totalPositions,
       totalDistance: 0, // TODO: Добавить расчет расстояния
-      totalTime: routes.reduce((sum, route) => {
-        const start = new Date(route.session_start);
-        const end = new Date(route.session_end || route.session_start);
-        return sum + (end - start);
-      }, 0)
+      totalTime: totalTime,
+      totalSessions: totalSessions
     };
   };
 
@@ -292,10 +329,12 @@ const TaskTracker = () => {
 
       {/* Статистика маршрутов задачи */}
       {routes.length > 0 && (
-        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-          <Chip label={`Маршрутов: ${stats.totalRoutes}`} color="primary" />
-          <Chip label={`Точек: ${stats.totalPositions}`} color="secondary" />
-          <Chip label={`Время: ${formatDuration(stats.totalTime)}`} color="info" />
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <Chip label={`Сессий: ${stats.totalSessions}`} color="primary" />
+            <Chip label={`Точек: ${stats.totalPositions}`} color="secondary" />
+            <Chip label={`Время: ${formatDuration(stats.totalTime)}`} color="info" />
+          </Box>
         </Box>
       )}
 

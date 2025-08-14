@@ -8,6 +8,9 @@ import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { useThemeContext } from './context/ThemeContext';
 
+// Импортируем тестовый файл для проверки переменных окружения
+import './test-env-vars';
+
 // Компонент-обертка для применения темы
 const AppWithTheme = () => {
   const { theme } = useThemeContext();

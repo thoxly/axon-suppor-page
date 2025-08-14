@@ -18,6 +18,7 @@ import {
   ArrowBack as ArrowBackIcon,
   CheckCircle as CheckCircleIcon,
   LocationOn as LocationIcon,
+  Cancel as CancelIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuthContext } from '../../context/AuthContext';
@@ -120,6 +121,9 @@ const CurrentTaskPage = () => {
           throw new Error('Не удалось получить данные пользователя Telegram');
         }
 
+        // Быстрая проверка на наличие текущей задачи
+        console.log('Checking for current task...');
+
         // Загружаем все задачи
         const tasksResponse = await api.tasks.getForMiniApp(telegramUser.id);
         
@@ -127,8 +131,9 @@ const CurrentTaskPage = () => {
         const currentTask = tasksResponse.assigned.find(t => t.status === 'in-progress');
         
         if (!currentTask) {
-          // Если нет задачи в работе, перенаправляем на главную
-          navigate('/my-app');
+          // Если нет задачи в работе, перенаправляем на карту миниприложения
+          console.log('No current task found, redirecting to /my-app');
+          navigate('/my-app', { replace: true });
           return;
         }
 
@@ -145,9 +150,15 @@ const CurrentTaskPage = () => {
           await fetchCurrentPosition(telegramUser);
         }
 
+        console.log('Current task loaded successfully:', currentTask.title);
+
       } catch (err) {
         console.error('Failed to fetch current task:', err);
         setError(err.message || 'Не удалось загрузить текущую задачу');
+        
+        // Если произошла ошибка при загрузке задач, перенаправляем на карту
+        console.log('Error occurred, redirecting to /my-app');
+        navigate('/my-app', { replace: true });
       } finally {
         setLoading(false);
       }
@@ -155,6 +166,10 @@ const CurrentTaskPage = () => {
 
     if (isAuthenticated) {
       fetchCurrentTask();
+    } else {
+      // Если пользователь не аутентифицирован, перенаправляем на карту
+      console.log('User not authenticated, redirecting to /my-app');
+      navigate('/my-app', { replace: true });
     }
   }, [isAuthenticated, navigate]);
 
@@ -174,6 +189,18 @@ const CurrentTaskPage = () => {
     return () => clearInterval(interval);
   }, [hasActiveLocationSession, activeSession]);
 
+  // Эффект для автоматического перенаправления, если нет задачи
+  useEffect(() => {
+    if (!loading && !task && !error) {
+      const timer = setTimeout(() => {
+        console.log('Auto-redirecting to /my-app due to no task');
+        navigate('/my-app', { replace: true });
+      }, 3000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [loading, task, error, navigate]);
+
   const handleCompleteWork = async () => {
     try {
       triggerHapticFeedback('medium');
@@ -184,6 +211,25 @@ const CurrentTaskPage = () => {
     }
   };
 
+  const handleCancelTask = async () => {
+    try {
+      triggerHapticFeedback('medium');
+      
+      const telegramUser = getTelegramUser();
+      if (!telegramUser) {
+        throw new Error('Не удалось получить данные пользователя Telegram');
+      }
+
+      // Изменяем статус задачи с in-progress на accepted
+      await api.tasks.updateStatus(task.id, 'accepted', telegramUser.id);
+      
+      // Перенаправляем обратно к списку задач
+      navigate('/my-app');
+    } catch (err) {
+      console.error('Failed to cancel task:', err);
+      setError(err.message || 'Ошибка при отмене задачи');
+    }
+  };
 
 
   const handleTaskCompleted = async (updatedTask) => {
@@ -302,8 +348,20 @@ const CurrentTaskPage = () => {
   if (!task) {
     return (
       <Container maxWidth="sm" sx={{ py: 4 }}>
-        <Alert severity="info" sx={{ borderRadius: 2 }}>
-          Нет активных задач
+        <Alert 
+          severity="info" 
+          sx={{ borderRadius: 2 }}
+          action={
+            <Button 
+              color="inherit" 
+              size="small" 
+              onClick={() => navigate('/my-app')}
+            >
+              На карту
+            </Button>
+          }
+        >
+          Нет активных задач. Перенаправляем на карту через 3 секунды...
         </Alert>
       </Container>
     );
@@ -337,7 +395,7 @@ const CurrentTaskPage = () => {
         <Box
           sx={{
             position: 'absolute',
-            top: '10%',
+            top: '2%',
             left: 0,
             right: 0,
             zIndex: 1000,
@@ -357,18 +415,6 @@ const CurrentTaskPage = () => {
             }}
           >
             <Box display="flex" alignItems="center" gap={2} mb={2}>
-              <IconButton
-                onClick={handleBack}
-                sx={{
-                  color: theme.palette.text.primary,
-                  backgroundColor: alpha(theme.palette.background.paper, 0.8),
-                  '&:hover': {
-                    backgroundColor: alpha(theme.palette.background.paper, 0.9),
-                  },
-                }}
-              >
-                <ArrowBackIcon />
-              </IconButton>
               <Box flex={1}>
                 <Typography variant="h6" sx={{ fontWeight: 700, color: theme.palette.text.primary }}>
                   {hasActiveLocationSession ? 'Текущая задача' : 'Ваше положение известно'}
@@ -427,10 +473,13 @@ const CurrentTaskPage = () => {
           <Box
             sx={{
               position: 'absolute',
-              bottom: 40, // Поднимаем выше
+              bottom: 40,
               left: 16,
               right: 16,
               zIndex: 1000,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 5,
             }}
           >
             <Button
@@ -456,6 +505,31 @@ const CurrentTaskPage = () => {
               }}
             >
               Завершить задачу
+            </Button>
+            
+            <Button
+              variant="contained"
+              color="error"
+              startIcon={<CancelIcon />}
+              onClick={handleCancelTask}
+              fullWidth
+              sx={{ 
+                borderRadius: 3,
+                textTransform: 'none',
+                fontWeight: 600,
+                py: 2,
+                fontSize: '1.1rem',
+                background: `linear-gradient(135deg, ${theme.palette.error.main}, ${theme.palette.error.dark})`,
+                '&:hover': {
+                  background: `linear-gradient(135deg, ${theme.palette.error.dark}, ${theme.palette.error.main})`,
+                  transform: 'translateY(-2px)',
+                  boxShadow: `0 8px 25px -5px ${alpha(theme.palette.error.main, 0.4)}`,
+                },
+                transition: 'all 0.3s ease-in-out',
+                boxShadow: `0 4px 15px -3px ${alpha(theme.palette.error.main, 0.3)}`,
+              }}
+            >
+              Отменить
             </Button>
           </Box>
         </Fade>

@@ -24,6 +24,7 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import useAuth from '../../hooks/useAuth';
 import { api } from '../../utils/api';
 import { toUTC, toLocal, hasTimeComponent } from '../../utils/dateUtils';
+import AddressAutocomplete from '../common/AddressAutocomplete';
 
 const TaskFormOffcanvas = ({ open, onClose, task, onSubmit }) => {
   const [formData, setFormData] = useState({
@@ -34,6 +35,8 @@ const TaskFormOffcanvas = ({ open, onClose, task, onSubmit }) => {
     deadline: null,
     description: '',
     requiresVerification: false,
+    finishPointLatitude: null,
+    finishPointLongitude: null,
   });
   const [showStartTime, setShowStartTime] = useState(false);
   const [showDeadlineTime, setShowDeadlineTime] = useState(false);
@@ -57,6 +60,8 @@ const TaskFormOffcanvas = ({ open, onClose, task, onSubmit }) => {
           deadline,
           description: task.description || '',
           requiresVerification: task.requires_verification || false,
+          finishPointLatitude: task.finish_point_latitude || null,
+          finishPointLongitude: task.finish_point_longitude || null,
         });
         
         setShowStartTime(startDate ? hasTimeComponent(startDate) : false);
@@ -103,6 +108,8 @@ const TaskFormOffcanvas = ({ open, onClose, task, onSubmit }) => {
       deadline: null,
       description: '',
       requiresVerification: false,
+      finishPointLatitude: null,
+      finishPointLongitude: null,
     });
     setShowStartTime(false);
     setShowDeadlineTime(false);
@@ -135,7 +142,9 @@ const TaskFormOffcanvas = ({ open, onClose, task, onSubmit }) => {
         requires_verification: formData.requiresVerification,
         start_date: formData.startDate ? toUTC(formData.startDate).toISOString() : null,
         end_date: formData.deadline ? toUTC(formData.deadline).toISOString() : null,
-        status: formData.employeeId ? 'assigned' : 'not-assigned'
+        status: formData.employeeId ? 'assigned' : 'not-assigned',
+        finish_point_latitude: formData.finishPointLatitude,
+        finish_point_longitude: formData.finishPointLongitude,
       };
 
       await onSubmit(payload);
@@ -153,6 +162,33 @@ const TaskFormOffcanvas = ({ open, onClose, task, onSubmit }) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
+  };
+
+  const handleAddressChange = (address) => {
+    setFormData((prev) => ({ ...prev, address }));
+    if (errors.address) {
+      setErrors((prev) => ({ ...prev, address: undefined }));
+    }
+  };
+
+  const handleCoordinatesChange = (coordinates) => {
+    console.log('TaskFormOffcanvas: handleCoordinatesChange called with:', coordinates);
+    
+    if (coordinates) {
+      console.log('Setting coordinates:', coordinates.latitude, coordinates.longitude);
+      setFormData((prev) => ({
+        ...prev,
+        finishPointLatitude: coordinates.latitude,
+        finishPointLongitude: coordinates.longitude
+      }));
+    } else {
+      console.log('Clearing coordinates');
+      setFormData((prev) => ({
+        ...prev,
+        finishPointLatitude: null,
+        finishPointLongitude: null
+      }));
     }
   };
 
@@ -263,12 +299,12 @@ const TaskFormOffcanvas = ({ open, onClose, task, onSubmit }) => {
             helperText={errors.title}
           />
 
-          <TextField
+          <AddressAutocomplete
             label="Адрес"
             value={formData.address}
-            onChange={handleChange('address')}
-            multiline
-            rows={2}
+            onChange={handleAddressChange}
+            onCoordinatesChange={handleCoordinatesChange}
+            placeholder="Введите адрес задачи"
           />
 
           <FormControl fullWidth>

@@ -45,41 +45,57 @@ async function handleLocation(ctx, isEdit = false) {
             // Получаем/создаем активную сессию
             let activeSession = await locationService.getActiveSession(user.id);
             if (!activeSession) {
-                activeSession = await locationService.createSession(user.id, null);
-                console.log(`✅ Created new session ${activeSession.id} for user ${user.id}`);
-                await ctx.reply('📍 Начато отслеживание вашей локации. Ожидаем назначения задачи...');
+                // Проверяем, есть ли активная задача
+                const activeTask = await locationService.getUserActiveTask(user.id);
+                activeSession = await locationService.createSession(user.id, activeTask ? activeTask.id : null);
+                console.log(`✅ Created new session ${activeSession.id} for user ${user.id}${activeTask ? ` with task ${activeTask.id}` : ''}`);
+                
+                if (activeTask) {
+                    await ctx.reply(
+                        `📍 Начато отслеживание для задачи:\n\n` +
+                        `**${activeTask.title}**\n` +
+                        `${activeTask.description || ''}\n\n` +
+                        `🕐 Отслеживание началось в ${new Date().toLocaleString('ru-RU')}`,
+                        { parse_mode: 'Markdown' }
+                    );
+                } else {
+                    await ctx.reply('📍 Начато отслеживание вашей локации. Ожидаем назначения задачи...');
+                }
             }
 
             // Обновляем heartbeat
             locationService.updateLastLocationTime(telegramId);
 
-            // Сохраняем позицию с текущим временем
+            // Сохраняем позицию с валидацией координат
             const coords = fromTelegram(location);
             if (coords) {
-                await locationService.savePosition(
+                const saveResult = await locationService.savePosition(
                     user.id,
                     activeSession.id,
                     coords[0], // latitude
                     coords[1], // longitude
                     new Date()
                 );
-            }
 
-            console.log(`✅ Position saved for user ${user.id}, session ${activeSession.id}`);
-
-            // Линкуем задачу если есть
-            if (!activeSession.task_id) {
-                const activeTask = await locationService.getUserActiveTask(user.id);
-                if (activeTask) {
-                    await locationService.updateSessionTask(activeSession.id, activeTask.id);
-                    console.log(`🔗 Linked task ${activeTask.id} to session ${activeSession.id}`);
-                    await ctx.reply(
-                        `📋 Задача привязана к отслеживанию:\n\n` +
-                        `**${activeTask.title}**\n` +
-                        `${activeTask.description || ''}\n\n` +
-                        `🕐 Отслеживание началось в ${new Date().toLocaleString('ru-RU')}`,
-                        { parse_mode: 'Markdown' }
-                    );
+                // Обрабатываем результат валидации
+                if (!saveResult.saved) {
+                    console.log(`🚫 Position rejected for user ${user.id}: ${saveResult.validation.reason}`);
+                    
+                    // Уведомляем пользователя о проблемах с GPS
+                    if (saveResult.validation.riskLevel === 'HIGH') {
+                        await ctx.reply(
+                            '⚠️ Обнаружены подозрительные координаты GPS!\n\n' +
+                            '🔍 Возможные причины:\n' +
+                            '• Помехи GPS в данной зоне\n' +
+                            '• Проблемы с геолокацией устройства\n\n' +
+                            '📍 Пожалуйста, убедитесь что GPS включен и попробуйте переместиться в место с лучшим сигналом.'
+                        );
+                    }
+                } else if (saveResult.validation && saveResult.validation.warnings.length > 0) {
+                    console.log(`⚠️ Position saved with warnings for user ${user.id}: ${saveResult.validation.warnings.join(', ')}`);
+                    console.log(`✅ Position saved for user ${user.id}, session ${activeSession.id}`);
+                } else {
+                    console.log(`✅ Position saved for user ${user.id}, session ${activeSession.id}`);
                 }
             }
             return;
@@ -95,24 +111,45 @@ async function handleLocation(ctx, isEdit = false) {
             let activeSession = await locationService.getActiveSession(user.id);
             if (!activeSession) {
                 // Если по каким-то причинам сессию деактивировали — создаем новую
-                activeSession = await locationService.createSession(user.id, null);
-                console.log(`✅ Created new session ${activeSession.id} for user ${user.id}`);
+                const activeTask = await locationService.getUserActiveTask(user.id);
+                activeSession = await locationService.createSession(user.id, activeTask ? activeTask.id : null);
+                console.log(`✅ Created new session ${activeSession.id} for user ${user.id}${activeTask ? ` with task ${activeTask.id}` : ''}`);
             } else if (!activeSession.is_active) {
                 await locationService.reactivateSession(activeSession.id);
             }
 
-            // Сохраняем позицию с текущим временем
+            // Сохраняем позицию с валидацией координат
             const coords = fromTelegram(location);
             if (coords) {
-                await locationService.savePosition(
+                const saveResult = await locationService.savePosition(
                     user.id,
                     activeSession.id,
                     coords[0], // latitude
                     coords[1], // longitude
                     new Date()
                 );
+
+                // Обрабатываем результат валидации
+                if (!saveResult.saved) {
+                    console.log(`🚫 Position rejected for user ${user.id}: ${saveResult.validation.reason}`);
+                    
+                    // Уведомляем пользователя о проблемах с GPS
+                    if (saveResult.validation.riskLevel === 'HIGH') {
+                        await ctx.reply(
+                            '⚠️ Обнаружены подозрительные координаты GPS!\n\n' +
+                            '🔍 Возможные причины:\n' +
+                            '• Помехи GPS в данной зоне\n' +
+                            '• Проблемы с геолокацией устройства\n\n' +
+                            '📍 Пожалуйста, убедитесь что GPS включен и попробуйте переместиться в место с лучшим сигналом.'
+                        );
+                    }
+                } else if (saveResult.validation && saveResult.validation.warnings.length > 0) {
+                    console.log(`⚠️ Position saved with warnings for user ${user.id}: ${saveResult.validation.warnings.join(', ')}`);
+                    console.log(`✅ Position saved for user ${user.id}, session ${activeSession.id}`);
+                } else {
+                    console.log(`✅ Position saved for user ${user.id}, session ${activeSession.id}`);
+                }
             }
-            console.log(`✅ Position saved for user ${user.id}, session ${activeSession.id}`);
             return;
         }
 

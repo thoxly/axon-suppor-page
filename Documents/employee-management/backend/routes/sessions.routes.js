@@ -19,4 +19,10 @@ router.post('/', verifyTokenOptional, loadUserOptional, loadUserByTelegramId, se
 // Деактивация сессии
 router.patch('/:id/deactivate', verifyTokenOptional, loadUserOptional, loadUserByTelegramId, sessionsController.deactivateSession);
 
+// Получение сессий для задачи
+router.get('/task/:taskId', verifyTokenOptional, loadUserOptional, loadUserByTelegramId, sessionsController.getTaskSessions);
+
+// Получение позиций для сессии
+router.get('/:sessionId/positions', verifyTokenOptional, loadUserOptional, loadUserByTelegramId, sessionsController.getSessionPositions);
+
 module.exports = router; 

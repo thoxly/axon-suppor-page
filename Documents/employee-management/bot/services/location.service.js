@@ -158,16 +158,32 @@ class LocationService {
     }
 
     /**
-     * Сохранить позицию пользователя
+     * Сохранить позицию пользователя с валидацией координат
      * @param {number} userId - ID пользователя в системе
      * @param {number} sessionId - ID сессии
      * @param {number} latitude - Широта
      * @param {number} longitude - Долгота
      * @param {Date} timestamp - Время получения позиции
-     * @returns {Promise<Object>} - Сохраненная позиция
+     * @returns {Promise<Object>} - Результат сохранения с информацией о валидации
      */
     async savePosition(userId, sessionId, latitude, longitude, timestamp = new Date()) {
         try {
+            // Сначала валидируем координаты
+            const validationResult = await this.validatePositionBeforeSaving(
+                userId, sessionId, [latitude, longitude], timestamp
+            );
+
+            // Если координаты отклонены, не сохраняем
+            if (!validationResult.shouldSave) {
+                console.log(`🚫 Position validation failed for user ${userId}: ${validationResult.reason}`);
+                return {
+                    saved: false,
+                    validation: validationResult,
+                    position: null
+                };
+            }
+
+            // Сохраняем координаты с информацией о валидации
             const query = `
                 INSERT INTO positions (user_id, session_id, latitude, longitude, timestamp)
                 VALUES ($1, $2, $3, $4, $5)
@@ -175,11 +191,163 @@ class LocationService {
             `;
             
             const result = await db.query(query, [userId, sessionId, latitude, longitude, timestamp]);
-            console.log(`📍 Saved position for user ${userId}, session ${sessionId}`);
-            return result.rows[0];
+            
+            // Логируем результат с учетом валидации
+            if (validationResult.riskLevel === 'HIGH' || validationResult.warnings.length > 0) {
+                console.log(`⚠️ Saved position with warnings for user ${userId}, session ${sessionId}: ${validationResult.warnings.join(', ')}`);
+            } else {
+                console.log(`📍 Saved position for user ${userId}, session ${sessionId}`);
+            }
+
+            return {
+                saved: true,
+                validation: validationResult,
+                position: result.rows[0]
+            };
         } catch (error) {
             console.error('❌ Error in savePosition:', error);
             throw error;
+        }
+    }
+
+    /**
+     * Валидирует позицию перед сохранением
+     * @param {number} userId - ID пользователя
+     * @param {number} sessionId - ID сессии  
+     * @param {Array} coords - координаты [lat, lng]
+     * @param {Date} timestamp - временная метка
+     * @returns {Promise<Object>} - результат валидации
+     */
+    async validatePositionBeforeSaving(userId, sessionId, coords, timestamp) {
+        try {
+            // Получаем контекст задачи для валидации
+            const validationContext = await this.getTaskValidationContext(sessionId);
+            
+            if (!validationContext.expectedCoords) {
+                // Нет ожидаемых координат - пропускаем валидацию
+                return {
+                    shouldSave: true,
+                    riskLevel: 'LOW',
+                    warnings: [],
+                    reason: 'no_expected_coordinates'
+                };
+            }
+
+            // Получаем предыдущие позиции для анализа паттернов
+            const previousPositions = await this.getRecentUserPositions(userId, 10);
+            
+            // Создаем простой валидатор (можно использовать полный CoordinateValidator)
+            const CoordinateValidator = require('../../backend/utils/coordinateValidator');
+            const validator = new CoordinateValidator({
+                maxAllowedDeviationKm: validationContext.maxAllowedDeviationKm || 5.0
+            });
+
+            // Подготавливаем контекст для валидации
+            const context = {
+                expectedCoords: validationContext.expectedCoords,
+                previousPositions: previousPositions.map(p => ({ coords: [p.latitude, p.longitude] })),
+                lastPosition: previousPositions.length > 0 ? {
+                    coords: [previousPositions[0].latitude, previousPositions[0].longitude],
+                    timestamp: new Date(previousPositions[0].timestamp)
+                } : null,
+                timeDiff: previousPositions.length > 0 ? 
+                    Math.abs(timestamp - new Date(previousPositions[0].timestamp)) : null,
+                maxSpeedKmh: 120
+            };
+
+            // Валидируем координаты
+            const validation = validator.validateCoordinates(coords, context);
+            
+            // Определяем, сохранять ли позицию
+            const shouldSave = validation.riskLevel !== 'HIGH';
+            
+            return {
+                shouldSave: shouldSave,
+                riskLevel: validation.riskLevel,
+                warnings: validation.warnings || [],
+                details: validation.details,
+                reason: shouldSave ? 'validation_passed' : 'high_risk_detected',
+                taskInfo: validationContext
+            };
+        } catch (error) {
+            console.error('❌ Error in validatePositionBeforeSaving:', error);
+            // При ошибке валидации сохраняем координаты (fail-safe)
+            return {
+                shouldSave: true,
+                riskLevel: 'UNKNOWN',
+                warnings: ['validation_error'],
+                reason: 'validation_failed'
+            };
+        }
+    }
+
+    /**
+     * Получает контекст задачи для валидации координат
+     * @param {number} sessionId - ID сессии
+     * @returns {Promise<Object>} - контекст валидации
+     */
+    async getTaskValidationContext(sessionId) {
+        try {
+            const query = `
+                SELECT 
+                    t.id as task_id,
+                    t.expected_latitude,
+                    t.expected_longitude,
+                    t.max_deviation_km,
+                    t.address,
+                    t.title
+                FROM sessions s
+                LEFT JOIN tasks t ON s.task_id = t.id
+                WHERE s.id = $1
+            `;
+
+            const { rows } = await db.query(query, [sessionId]);
+            
+            if (rows.length === 0 || !rows[0].task_id) {
+                return {};
+            }
+
+            const task = rows[0];
+            let expectedCoords = null;
+            
+            if (task.expected_latitude && task.expected_longitude) {
+                expectedCoords = [task.expected_latitude, task.expected_longitude];
+            }
+
+            return {
+                taskId: task.task_id,
+                expectedCoords: expectedCoords,
+                maxAllowedDeviationKm: task.max_deviation_km || 5.0,
+                taskTitle: task.title,
+                taskAddress: task.address
+            };
+        } catch (error) {
+            console.error('❌ Error getting task validation context:', error);
+            return {};
+        }
+    }
+
+    /**
+     * Получает последние позиции пользователя для анализа паттернов
+     * @param {number} userId - ID пользователя
+     * @param {number} limit - количество позиций
+     * @returns {Promise<Array>} - массив позиций
+     */
+    async getRecentUserPositions(userId, limit = 10) {
+        try {
+            const query = `
+                SELECT latitude, longitude, timestamp
+                FROM positions
+                WHERE user_id = $1
+                ORDER BY timestamp DESC
+                LIMIT $2
+            `;
+
+            const { rows } = await db.query(query, [userId, limit]);
+            return rows;
+        } catch (error) {
+            console.error('❌ Error getting recent user positions:', error);
+            return [];
         }
     }
 

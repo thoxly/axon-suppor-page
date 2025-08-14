@@ -492,5 +492,67 @@ export const api = {
                 method: 'GET',
             });
         },
+        // Получить сессии для задачи
+        getTaskSessions: (taskId) => {
+            return apiRequest(`/api/sessions/task/${taskId}`, {
+                method: 'GET',
+            });
+        },
+        // Получить позиции для сессии
+        getSessionPositions: (sessionId) => {
+            return apiRequest(`/api/sessions/${sessionId}/positions`, {
+                method: 'GET',
+            });
+        },
+    },
+    coordinateProcessing: {
+        // Получить обработанные координаты сессии
+        getSessionProcessedCoordinates: (sessionId) => {
+            return apiRequest(`/api/coordinate-processing/sessions/${sessionId}/coordinates`, {
+                method: 'GET',
+            });
+        },
+        // Получить обработанные координаты сессий за период
+        getSessionsProcessedCoordinatesForPeriod: (userId, startDate, endDate) => {
+            const params = new URLSearchParams({
+                userId: userId.toString(),
+                startDate: startDate.toISOString(),
+                endDate: endDate.toISOString()
+            });
+            return apiRequest(`/api/coordinate-processing/sessions/period?${params}`, {
+                method: 'GET',
+            });
+        },
+        // Получить статистику сессии
+        getSessionStats: (sessionId) => {
+            return apiRequest(`/api/coordinate-processing/sessions/${sessionId}/stats`, {
+                method: 'GET',
+            });
+        },
+        // Получить обработанные координаты задачи
+        getTaskProcessedCoordinates: (taskId) => {
+            return apiRequest(`/api/coordinate-processing/tasks/${taskId}/coordinates`, {
+                method: 'GET',
+            });
+        },
+        // Получить статистику задачи
+        getTaskStats: (taskId) => {
+            return apiRequest(`/api/coordinate-processing/tasks/${taskId}/stats`, {
+                method: 'GET',
+            });
+        },
+        // Получить настройки обработки
+        getProcessingSettings: () => {
+            return apiRequest('/api/coordinate-processing/settings', {
+                method: 'GET',
+            });
+        },
+        // Обновить настройки обработки (только для менеджеров)
+        updateProcessingSettings: (settings) => {
+            return apiRequest('/api/coordinate-processing/settings', {
+                method: 'PUT',
+                body: JSON.stringify(settings),
+            });
+        },
     },
 }; 

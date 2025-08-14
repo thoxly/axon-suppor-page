@@ -97,22 +97,54 @@ const PeriodTracker = () => {
       setError(null);
       setNoDataAlert(null);
       
-      const response = await api.employees.getPositions(selectedEmployee, startDate, endDate);
+      // Используем новый API обработки координат вместо старого
+      console.log('🔍 Fetching processed coordinates for period:', {
+        userId: selectedEmployee,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString()
+      });
       
-      console.log('🔍 API Response:', response);
-      console.log('🔍 Routes data:', response.routes);
-      console.log('🔍 Routes count:', response.routes?.length);
+      const response = await api.coordinateProcessing.getSessionsProcessedCoordinatesForPeriod(
+        parseInt(selectedEmployee),
+        startDate,
+        endDate
+      );
       
-      if (!response.routes || response.routes.length === 0) {
+      console.log('🔍 Processed coordinates response:', response);
+      console.log('🔍 Coordinates count:', response.coordinates?.length);
+      
+      if (!response.coordinates || response.coordinates.length === 0) {
         setNoDataAlert(`Нет данных о перемещениях сотрудника за выбранный период ${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`);
         setRoutes([]);
         return;
       }
       
-      setRoutes(response.routes);
+      // Создаем маршрут из обработанных координат
+      const processedRoute = {
+        route_type: 'period',
+        session_id: null,
+        session_start: response.coordinates[0]?.timestamp,
+        session_end: response.coordinates[response.coordinates.length - 1]?.timestamp,
+        positions: response.coordinates.map(coord => ({
+          latitude: coord.latitude,
+          longitude: coord.longitude,
+          timestamp: coord.timestamp,
+          originalCount: coord.originalCount || 1
+        })),
+        processingStats: {
+          totalOriginalPositions: response.coordinates.reduce((sum, coord) => sum + (coord.originalCount || 1), 0),
+          totalProcessedPositions: response.coordinates.length,
+          reductionPercent: response.coordinates.length > 0 ? 
+            ((response.coordinates.reduce((sum, coord) => sum + (coord.originalCount || 1), 0) - response.coordinates.length) / 
+             response.coordinates.reduce((sum, coord) => sum + (coord.originalCount || 1), 0) * 100).toFixed(1) : 0
+        }
+      };
+      
+      console.log('🔍 Processed route:', processedRoute);
+      setRoutes([processedRoute]);
     } catch (err) {
-      console.error('Error fetching routes:', err);
-      setError('Не удалось загрузить маршруты');
+      console.error('Error fetching processed coordinates:', err);
+      setError('Не удалось загрузить обработанные маршруты');
     } finally {
       setLoading(false);
     }
@@ -136,14 +168,27 @@ const PeriodTracker = () => {
 
   // Получаем статистику по маршрутам
   const getRouteStats = () => {
-    const taskRoutes = routes.filter(route => route.route_type === 'task');
-    const sessionRoutes = routes.filter(route => route.route_type === 'session');
+    if (routes.length === 0) {
+      return {
+        totalRoutes: 0,
+        totalPositions: 0,
+        totalDistance: 0,
+        totalTime: 0,
+        processingStats: null
+      };
+    }
+
+    const route = routes[0]; // У нас только один обработанный маршрут
+    const processingStats = route.processingStats;
     
     return {
       totalRoutes: routes.length,
-      taskRoutes: taskRoutes.length,
-      sessionRoutes: sessionRoutes.length,
-      totalPositions: routes.reduce((sum, route) => sum + route.positions.length, 0)
+      totalPositions: route.positions.length,
+      totalDistance: 0, // Будет вычислено позже если нужно
+      totalTime: route.session_start && route.session_end 
+        ? new Date(route.session_end) - new Date(route.session_start)
+        : 0,
+      processingStats: processingStats
     };
   };
 
@@ -174,6 +219,22 @@ const PeriodTracker = () => {
         return 'Ожидает';
       default:
         return status;
+    }
+  };
+
+  // Функция для форматирования длительности в человеко-читаемом формате
+  const formatDuration = (milliseconds) => {
+    if (milliseconds === 0) return '0 секунд';
+    const seconds = Math.floor(milliseconds / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+
+    if (hours > 0) {
+      return `${hours} час${hours > 1 ? 'а' : ''} ${minutes % 60} мин`;
+    } else if (minutes > 0) {
+      return `${minutes} мин ${seconds % 60} сек`;
+    } else {
+      return `${seconds} сек`;
     }
   };
 
@@ -250,6 +311,27 @@ const PeriodTracker = () => {
       {/* Статистика маршрутов */}
       <RouteStats routes={routes} />
 
+      {/* Статистика обработки координат */}
+      {routes.length > 0 && stats.processingStats && (
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+          <Chip
+            label={`Исходных точек: ${stats.processingStats.totalOriginalPositions}`}
+            color="default"
+            variant="outlined"
+          />
+          <Chip
+            label={`Сокращение: ${stats.processingStats.reductionPercent}%`}
+            color="warning"
+            variant="outlined"
+          />
+          <Chip
+            label={`Время: ${formatDuration(stats.totalTime)}`}
+            color="info"
+            variant="outlined"
+          />
+        </Box>
+      )}
+
       {/* Список маршрутов */}
       {routes.length > 0 && (
         <Accordion>
@@ -271,10 +353,10 @@ const PeriodTracker = () => {
                 >
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                     <Typography variant="subtitle1">
-                      {route.route_type === 'task' ? 'Задача' : 'Без задачи'} #{index + 1}
+                      {route.route_type === 'task' ? 'Задача' : 'Период'} #{index + 1}
                     </Typography>
                     <Chip 
-                      label={route.route_type === 'task' ? 'Задача' : 'Без задачи'} 
+                      label={route.route_type === 'task' ? 'Задача' : 'Период'} 
                       color={route.route_type === 'task' ? 'primary' : 'secondary'}
                       size="small"
                     />
@@ -308,6 +390,24 @@ const PeriodTracker = () => {
                   <Typography variant="body2" color="text.secondary">
                     <strong>Точек маршрута:</strong> {route.positions.length}
                   </Typography>
+
+                  {/* Информация об обработке координат */}
+                  {route.processingStats && (
+                    <Box sx={{ mt: 1, p: 1, bgcolor: 'grey.50', borderRadius: 1 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        <strong>Обработка координат:</strong>
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        • Исходных точек: {route.processingStats.totalOriginalPositions}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        • Обработанных точек: {route.processingStats.totalProcessedPositions}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        • Сокращение: {route.processingStats.reductionPercent}%
+                      </Typography>
+                    </Box>
+                  )}
                 </Box>
               ))}
             </Box>

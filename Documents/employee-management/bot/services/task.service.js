@@ -11,6 +11,8 @@ class TaskService {
             const query = `
                 SELECT t.id, t.title, t.description, t.status, t.start_date, t.end_date,
                        t.requires_verification, t.created_at,
+                       t.start_point_latitude, t.start_point_longitude,
+                       t.finish_point_latitude, t.finish_point_longitude,
                        c.name as company_name
                 FROM tasks t
                 JOIN companies c ON t.company_id = c.id
@@ -36,6 +38,8 @@ class TaskService {
             const query = `
                 SELECT t.id, t.title, t.description, t.status, t.start_date, t.end_date,
                        t.requires_verification, t.created_at,
+                       t.start_point_latitude, t.start_point_longitude,
+                       t.finish_point_latitude, t.finish_point_longitude,
                        u.full_name as assigned_to_name
                 FROM tasks t
                 LEFT JOIN users u ON t.assigned_to = u.id
@@ -60,7 +64,9 @@ class TaskService {
         try {
             const query = `
                 SELECT t.id, t.title, t.description, t.status, t.start_date, t.end_date,
-                       t.requires_verification, t.created_at, t.updated_at,
+                       t.requires_verification, t.created_at, t.updated_at, t.assigned_to,
+                       t.start_point_latitude, t.start_point_longitude,
+                       t.finish_point_latitude, t.finish_point_longitude,
                        c.name as company_name,
                        u.full_name as assigned_to_name,
                        creator.full_name as created_by_name

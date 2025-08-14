@@ -8,6 +8,7 @@ const employeesRouter = require('./routes/employees.routes');
 const tasksRouter = require('./routes/tasks.routes');
 const companiesRouter = require('./routes/companies.routes');
 const sessionsRouter = require('./routes/sessions.routes');
+const coordinateProcessingRouter = require('./routes/coordinateProcessing.routes');
 
 const app = express();
 
@@ -74,6 +75,7 @@ app.use('/api/employees', employeesRouter);
 app.use('/api/tasks', tasksRouter);
 app.use('/api/company', companiesRouter);
 app.use('/api/sessions', sessionsRouter);
+app.use('/api/coordinate-processing', coordinateProcessingRouter);
 
 app.get('/', (req, res) => {
     res.send('Backend is running');

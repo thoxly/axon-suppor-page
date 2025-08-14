@@ -197,6 +197,78 @@ const sessionsController = {
             console.error('Error deactivating session:', error);
             res.status(500).json({ message: 'Ошибка при деактивации сессии' });
         }
+    },
+
+    // Получение сессий для задачи
+    async getTaskSessions(req, res) {
+        try {
+            if (!req.user?.id) {
+                return res.status(401).json({ message: 'Требуется авторизация' });
+            }
+
+            const { taskId } = req.params;
+
+            // Проверяем права доступа к задаче
+            const taskCheck = await db.query(
+                'SELECT id FROM tasks WHERE id = $1 AND company_id = $2',
+                [taskId, req.user.company_id]
+            );
+
+            if (taskCheck.rows.length === 0) {
+                return res.status(404).json({ message: 'Задача не найдена' });
+            }
+
+            const query = `
+                SELECT id, user_id, task_id, start_time, end_time, is_active, created_at, updated_at
+                FROM sessions 
+                WHERE task_id = $1
+                ORDER BY start_time ASC
+            `;
+            
+            const { rows } = await db.query(query, [taskId]);
+            
+            res.json({ sessions: rows });
+        } catch (error) {
+            console.error('Error getting task sessions:', error);
+            res.status(500).json({ message: 'Ошибка при получении сессий задачи' });
+        }
+    },
+
+    // Получение позиций для сессии
+    async getSessionPositions(req, res) {
+        try {
+            if (!req.user?.id) {
+                return res.status(401).json({ message: 'Требуется авторизация' });
+            }
+
+            const { sessionId } = req.params;
+
+            // Проверяем права доступа к сессии
+            const sessionCheck = await db.query(
+                `SELECT s.id FROM sessions s
+                 JOIN tasks t ON s.task_id = t.id
+                 WHERE s.id = $1 AND t.company_id = $2`,
+                [sessionId, req.user.company_id]
+            );
+
+            if (sessionCheck.rows.length === 0) {
+                return res.status(404).json({ message: 'Сессия не найдена' });
+            }
+
+            const query = `
+                SELECT latitude, longitude, timestamp
+                FROM positions 
+                WHERE session_id = $1
+                ORDER BY timestamp ASC
+            `;
+            
+            const { rows } = await db.query(query, [sessionId]);
+            
+            res.json({ positions: rows });
+        } catch (error) {
+            console.error('Error getting session positions:', error);
+            res.status(500).json({ message: 'Ошибка при получении позиций сессии' });
+        }
     }
 };
 

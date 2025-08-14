@@ -1,7 +1,7 @@
 // Конфигурация URL'ов для разных окружений
 export const API_URLS = {
     local: 'http://localhost:3003',
-    tunnel: 'https://operates-stops-eu-fallen.trycloudflare.com',
+    tunnel: 'https://athletes-cache-legitimate-dubai.trycloudflare.com',
 };
 
 export const FRONTEND_URLS = {

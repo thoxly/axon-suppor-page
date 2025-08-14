@@ -34,7 +34,7 @@ module.exports = {
                 'http://localhost:3002',
                 'http://localhost:3003',
                 'https://2adbc769f69a.ngrok.app', 
-                'https://operates-stops-eu-fallen.trycloudflare.com', 
+                'https://athletes-cache-legitimate-dubai.trycloudflare.com', 
                 'https://dev.прибыл.рф',
 
             ];
