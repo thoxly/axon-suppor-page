@@ -1,5 +1,4 @@
-import { cookies } from "next/headers";
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
+import { createClient } from "@/lib/supabase/server";
 
 const ELMA_BASE_URL =
   process.env.ELMA_API_BASE_URL ?? "https://elma-dev.copycon.ru/pub/v1";
@@ -74,8 +73,7 @@ async function fetchContactByEmail(
 }
 
 export async function getOrCreateCurrentProfile() {
-  const cookieStore = cookies();
-  const supabase = createServerComponentClient({ cookies: () => cookieStore });
+  const supabase = createClient();
 
   const {
     data: { user },

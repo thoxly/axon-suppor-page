@@ -1,6 +1,5 @@
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { createClient } from "@/lib/supabase/server";
 
 const ELMA_BASE_URL =
   process.env.ELMA_API_BASE_URL ?? "https://elma-dev.copycon.ru/pub/v1";
@@ -93,8 +92,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const cookieStore = cookies();
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+    const supabase = createClient();
 
     const { error } = await supabase.auth.signInWithOtp({
       email,
