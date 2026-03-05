@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getOrCreateCurrentProfile } from "@/lib/profile";
 import { query } from "@/lib/db";
@@ -40,11 +40,11 @@ async function loadTicketForUser(
 }
 
 export async function GET(
-  _request: Request,
-  context: { params: Params },
+  _request: NextRequest,
+  context: { params: Promise<Params> },
 ) {
   try {
-    const { elmaId } = context.params;
+    const { elmaId } = await context.params;
 
     const supabase = await createClient();
     const {
@@ -104,11 +104,11 @@ export async function GET(
 }
 
 export async function POST(
-  request: Request,
-  context: { params: Params },
+  request: NextRequest,
+  context: { params: Promise<Params> },
 ) {
   try {
-    const { elmaId } = context.params;
+    const { elmaId } = await context.params;
 
     const supabase = await createClient();
     const {
