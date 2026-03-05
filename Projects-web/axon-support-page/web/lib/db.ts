@@ -6,7 +6,7 @@ if (!connectionString) {
   throw new Error("SUPABASE_URL is not configured");
 }
 
-let pool: Pool | null = null;
+let pool: unknown = null;
 
 function getPool() {
   if (!pool) {
