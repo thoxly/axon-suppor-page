@@ -94,7 +94,8 @@ export async function POST(request: Request) {
 
     const supabaseAdmin = createAdminClient();
     const { data, error } = await supabaseAdmin.auth.admin.generateLink({
-      type: "email_otp",
+      // Используем тип magiclink, но берём одноразовый код из properties.email_otp
+      type: "magiclink",
       email,
       options: {
         redirectTo: process.env.NEXT_PUBLIC_SITE_URL ?? undefined,
