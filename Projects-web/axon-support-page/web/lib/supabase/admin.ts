@@ -1,15 +1,24 @@
 import { createClient } from "@supabase/supabase-js";
 
 export function createAdminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const secretKey = process.env.SUPABASE_SECRET_KEY;
+
+  if (!supabaseUrl) {
+    throw new Error("NEXT_PUBLIC_SUPABASE_URL is not configured");
+  }
+
+  if (!secretKey) {
+    throw new Error(
+      "SUPABASE_SECRET_KEY is not configured (use the `sb_secret_...` key from Supabase Settings → API Keys → Secret keys; backend only)",
+    );
+  }
+
+  return createClient(supabaseUrl, secretKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
     },
-  );
+  });
 }
 
