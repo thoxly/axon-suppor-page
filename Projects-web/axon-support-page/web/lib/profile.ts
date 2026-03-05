@@ -73,7 +73,7 @@ async function fetchContactByEmail(
 }
 
 export async function getOrCreateCurrentProfile() {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const {
     data: { user },
