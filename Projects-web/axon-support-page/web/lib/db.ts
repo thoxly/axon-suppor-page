@@ -1,19 +1,22 @@
 import { Pool } from "pg";
 
+type PgPool = InstanceType<typeof Pool>;
+
 const connectionString = process.env.SUPABASE_URL;
 
-if (!connectionString) {
-  throw new Error("SUPABASE_URL is not configured");
-}
+let pool: PgPool | null = null;
 
-let pool: unknown = null;
+function getPool(): PgPool {
+  if (!connectionString) {
+    throw new Error("SUPABASE_URL is not configured");
+  }
 
-function getPool() {
   if (!pool) {
     pool = new Pool({
       connectionString,
     });
   }
+
   return pool;
 }
 
@@ -22,7 +25,7 @@ export async function query<T = unknown>(
   params: unknown[] = [],
 ): Promise<{ rows: T[] }> {
   const client = getPool();
-  const result = await client.query<T>(text, params);
-  return { rows: result.rows };
+  const result = await client.query(text, params);
+  return { rows: result.rows as T[] };
 }
 
