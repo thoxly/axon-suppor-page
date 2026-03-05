@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 const ELMA_BASE_URL =
   process.env.ELMA_API_BASE_URL ?? "https://elma-dev.copycon.ru/pub/v1";
@@ -92,24 +92,36 @@ export async function POST(request: Request) {
       );
     }
 
-    const supabase = await createClient();
-
-    const { error } = await supabase.auth.signInWithOtp({
+    const supabaseAdmin = createAdminClient();
+    const { data, error } = await supabaseAdmin.auth.admin.generateLink({
+      type: "email_otp",
       email,
       options: {
-        emailRedirectTo: process.env.NEXT_PUBLIC_SITE_URL
-          ? `${process.env.NEXT_PUBLIC_SITE_URL}`
-          : undefined,
+        redirectTo: process.env.NEXT_PUBLIC_SITE_URL ?? undefined,
       },
     });
 
-    if (error) {
-      console.error("Supabase signInWithOtp error:", error.message);
+    if (error || !data) {
+      console.error("Supabase generateLink email_otp error:", error ?? data);
       return NextResponse.json(
-        { error: "Не удалось отправить письмо для входа" },
+        { error: "Не удалось сгенерировать код для входа" },
         { status: 500 },
       );
     }
+
+    const otp =
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (data as any).properties?.email_otp as string | undefined;
+
+    if (!otp) {
+      console.error("No email_otp in generateLink response", data);
+      return NextResponse.json(
+        { error: "Не удалось получить одноразовый код" },
+        { status: 500 },
+      );
+    }
+
+    console.log(`[DEV] OTP для ${email}: ${otp}`);
 
     return NextResponse.json({ success: true });
   } catch (error) {
