@@ -8,11 +8,18 @@ type ElmaPerson = {
   __id: string;
   _email?: { email: string }[];
   _companies?: string[];
+  my_business?: string[];
   _fullname?: {
     lastname?: string;
     firstname?: string;
     middlename?: string;
   };
+  f_i_o?: {
+    lastname?: string;
+    firstname?: string;
+    middlename?: string;
+  } | null;
+  __name?: string;
 };
 
 type ElmaListResponse = {
@@ -140,23 +147,32 @@ export async function getOrCreateCurrentProfile() {
     return null;
   }
 
-  const companies = personResult.person._companies ?? [];
-  const elmaCompanyId = companies[0];
+  const person = personResult.person;
+
+  let elmaCompanyId: string | undefined;
+
+  if (personResult.isExecutor) {
+    const businesses = person.my_business ?? [];
+    elmaCompanyId = businesses[0];
+  } else {
+    const companies = person._companies ?? [];
+    elmaCompanyId = companies[0];
+  }
 
   if (!elmaCompanyId) {
     console.error(
-      "ELMA contact has no companies for authenticated user, email:",
+      "ELMA person has no company for authenticated user, email:",
       email,
     );
     return null;
   }
 
-  const fullname = personResult.person._fullname;
+  const fio = person.f_i_o ?? person._fullname;
   const fullName =
-    fullname &&
-    [fullname.lastname, fullname.firstname, fullname.middlename]
-      .filter(Boolean)
-      .join(" ");
+    (fio &&
+      [fio.lastname, fio.firstname, fio.middlename].filter(Boolean).join(" ")) ||
+    person.__name ||
+    null;
 
   const { data: newProfile, error: insertError } = await supabase
     .from("profiles")
