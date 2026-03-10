@@ -60,16 +60,19 @@ export async function GET(
         { status: 404 },
       );
     }
-
++
     const company = item.company?.[0];
     const initiator = item.iniciator?.[0];
+    const executor = item.executor?.[0];
 
-    if (
-      !company ||
-      !initiator ||
-      company !== profile.elma_company_id ||
-      initiator !== profile.elma_contact_id
-    ) {
+    const isClientForTicket =
+      company === profile.elma_company_id &&
+      initiator === profile.elma_contact_id;
+
+    const isExecutorForTicket =
+      profile.is_executor && executor === profile.elma_contact_id;
+
+    if (!company || !initiator || (!isClientForTicket && !isExecutorForTicket)) {
       return NextResponse.json(
         { error: "Доступ к заявке запрещён" },
         { status: 403 },
@@ -83,6 +86,7 @@ export async function GET(
         elma_index,
         elma_company_id,
         elma_initiator_id,
+        elma_executor_id,
         headers,
         problem_description,
         urgency_code,
@@ -94,12 +98,13 @@ export async function GET(
       )
       values (
         $1, $2, $3, $4, $5, $6,
-        $7, $8, $9, $10, $11, $12
+        $7, $8, $9, $10, $11, $12, $13
       )
       on conflict (elma_id) do update set
         elma_index = excluded.elma_index,
         elma_company_id = excluded.elma_company_id,
         elma_initiator_id = excluded.elma_initiator_id,
+        elma_executor_id = excluded.elma_executor_id,
         headers = excluded.headers,
         problem_description = excluded.problem_description,
         urgency_code = excluded.urgency_code,
@@ -115,6 +120,7 @@ export async function GET(
         item.__index ?? null,
         company,
         initiator,
+        executor ?? null,
         item.headers ?? null,
         item.problem_description ?? null,
         null,

@@ -60,15 +60,17 @@ export async function GET() {
       const valueStrings: string[] = [];
 
       elmaRequests.forEach((item, index) => {
-        const baseIndex = index * 12;
+        const baseIndex = index * 13;
         const company = item.company?.[0] ?? companyId;
         const initiator = item.iniciator?.[0] ?? contactId;
+        const executor = item.executor?.[0] ?? null;
 
         values.push(
           item.__id,
           item.__index ?? null,
           company,
           initiator,
+          executor,
           item.headers ?? null,
           item.problem_description ?? null,
           null, // urgency_code (not normalized in sample)
@@ -86,7 +88,7 @@ export async function GET() {
             baseIndex + 8
           }, $${baseIndex + 9}, $${baseIndex + 10}, $${baseIndex + 11}, $${
             baseIndex + 12
-          })`,
+          }, $${baseIndex + 13})`,
         );
       });
 
@@ -96,6 +98,7 @@ export async function GET() {
           elma_index,
           elma_company_id,
           elma_initiator_id,
+          elma_executor_id,
           headers,
           problem_description,
           urgency_code,
@@ -110,6 +113,7 @@ export async function GET() {
           elma_index = excluded.elma_index,
           elma_company_id = excluded.elma_company_id,
           elma_initiator_id = excluded.elma_initiator_id,
+          elma_executor_id = excluded.elma_executor_id,
           headers = excluded.headers,
           problem_description = excluded.problem_description,
           urgency_code = excluded.urgency_code,
