@@ -56,14 +56,15 @@ async function loadTicketForUser(
 
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<Params> },
+  context: { params: Params },
 ) {
   try {
-    const { elmaId: paramsElmaId } = await context.params;
+    const { elmaId: paramsElmaId } = context.params;
 
     const url = new URL(request.url);
     const pathSegments = url.pathname.split("/").filter(Boolean);
-    const elmaId = pathSegments[pathSegments.length - 2] ?? paramsElmaId;
+    const fromPath = pathSegments[pathSegments.length - 2];
+    const elmaId = paramsElmaId ?? fromPath;
 
     if (!elmaId || elmaId === "undefined" || elmaId === "null") {
       return NextResponse.json(
@@ -132,14 +133,15 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  context: { params: Promise<Params> },
+  context: { params: Params },
 ) {
   try {
-    const { elmaId: paramsElmaId } = await context.params;
+    const { elmaId: paramsElmaId } = context.params;
 
     const url = new URL(request.url);
     const pathSegments = url.pathname.split("/").filter(Boolean);
-    const elmaId = pathSegments[pathSegments.length - 2] ?? paramsElmaId;
+    const fromPath = pathSegments[pathSegments.length - 2];
+    const elmaId = paramsElmaId ?? fromPath;
 
     if (!elmaId || elmaId === "undefined" || elmaId === "null") {
       return NextResponse.json(
