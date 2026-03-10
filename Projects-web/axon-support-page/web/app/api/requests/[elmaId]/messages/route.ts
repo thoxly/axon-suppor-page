@@ -56,10 +56,10 @@ async function loadTicketForUser(
 
 export async function GET(
   request: NextRequest,
-  context: { params: Params },
+  context: { params: Promise<Params> },
 ) {
   try {
-    const { elmaId: paramsElmaId } = context.params;
+    const { elmaId: paramsElmaId } = await context.params;
 
     const url = new URL(request.url);
     const pathSegments = url.pathname.split("/").filter(Boolean);
@@ -133,10 +133,10 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  context: { params: Params },
+  context: { params: Promise<Params> },
 ) {
   try {
-    const { elmaId: paramsElmaId } = context.params;
+    const { elmaId: paramsElmaId } = await context.params;
 
     const url = new URL(request.url);
     const pathSegments = url.pathname.split("/").filter(Boolean);
