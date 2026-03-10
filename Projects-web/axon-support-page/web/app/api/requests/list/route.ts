@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getOrCreateCurrentProfile } from "@/lib/profile";
-import { listRequests } from "@/lib/elmaClient";
+import { listRequests, type ElmaRequestListItem } from "@/lib/elmaClient";
 import { query } from "@/lib/db";
 
 export async function GET() {
@@ -26,12 +26,34 @@ export async function GET() {
     }
 
     const companyId: string = profile.elma_company_id;
-    const initiatorId: string = profile.elma_contact_id;
+    const contactId: string = profile.elma_contact_id;
 
-    const elmaRequests = await listRequests({
-      companyId,
-      initiatorId,
-    });
+    let elmaRequests: ElmaRequestListItem[] = [];
+
+    if (profile.is_executor) {
+      const [initiatorRequests, executorRequests] = await Promise.all([
+        listRequests({
+          companyId,
+          initiatorId: contactId,
+        }),
+        listRequests({
+          executorId: contactId,
+        }),
+      ]);
+
+      const byId = new Map<string, ElmaRequestListItem>();
+
+      [...initiatorRequests, ...executorRequests].forEach((item) => {
+        byId.set(item.__id, item);
+      });
+
+      elmaRequests = Array.from(byId.values());
+    } else {
+      elmaRequests = await listRequests({
+        companyId,
+        initiatorId: contactId,
+      });
+    }
 
     if (elmaRequests.length > 0) {
       const values: unknown[] = [];
@@ -40,7 +62,7 @@ export async function GET() {
       elmaRequests.forEach((item, index) => {
         const baseIndex = index * 12;
         const company = item.company?.[0] ?? companyId;
-        const initiator = item.iniciator?.[0] ?? initiatorId;
+        const initiator = item.iniciator?.[0] ?? contactId;
 
         values.push(
           item.__id,

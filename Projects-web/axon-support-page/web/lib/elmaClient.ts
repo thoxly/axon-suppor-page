@@ -62,39 +62,40 @@ export type ElmaUrgencyCode =
 export type ElmaCategoryCode = "general" | (string & {});
 
 export async function listRequests(params: {
-  companyId: string;
+  companyId?: string;
   initiatorId?: string;
   executorId?: string;
   statusCodes?: number[];
   from?: number;
 }): Promise<ElmaRequestListItem[]> {
+  const filterTf: Record<string, unknown> = {};
+
+  if (params.companyId) {
+    filterTf.company = [params.companyId];
+  }
+
+  if (params.initiatorId) {
+    filterTf.iniciator = [params.initiatorId];
+  }
+
+  if (params.executorId) {
+    filterTf.executor = [params.executorId];
+  }
+
+  if (params.statusCodes && params.statusCodes.length > 0) {
+    filterTf.__status = params.statusCodes;
+  }
+
   const body: Record<string, unknown> = {
     active: true,
     filter: {
-      tf: {
-        company: [params.companyId],
-      },
+      tf: filterTf,
     },
     from: params.from ?? 0,
     fields: {
       "*": true,
     },
   };
-
-  if (params.initiatorId) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (body.filter as any).tf.iniciator = [params.initiatorId];
-  }
-
-  if (params.executorId) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (body.filter as any).tf.executor = [params.executorId];
-  }
-
-  if (params.statusCodes && params.statusCodes.length > 0) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (body.filter as any).tf.__status = params.statusCodes;
-  }
 
   const response = await fetch(`${ELMA_BASE_URL}/app/requests/requests/list`, {
     method: "POST",
