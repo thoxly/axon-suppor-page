@@ -60,7 +60,7 @@ export async function GET(
         { status: 404 },
       );
     }
-+
+
     const company = item.company?.[0];
     const initiator = item.iniciator?.[0];
     const executor = item.executor?.[0];
