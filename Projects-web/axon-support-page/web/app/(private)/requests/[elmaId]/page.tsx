@@ -69,6 +69,8 @@ export default function RequestDetailsPage({
 }) {
   const { elmaId } = params;
 
+  const [effectiveElmaId, setEffectiveElmaId] = useState<string | null>(elmaId);
+
   const [item, setItem] = useState<ElmaRequestItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -77,10 +79,47 @@ export default function RequestDetailsPage({
     let cancelled = false;
 
     const load = async () => {
+      // Подстраховка: иногда params.elmaId почему-то оказывается "undefined",
+      // хотя в самом URL лежит корректный UUID. В этом случае пробуем
+      // восстановить идентификатор из window.location.pathname.
+      let id = effectiveElmaId;
+
+      if (
+        !id ||
+        id === "undefined" ||
+        id === "null"
+      ) {
+        if (typeof window !== "undefined") {
+          const segments = window.location.pathname.split("/").filter(Boolean);
+          const fromPath = segments[segments.length - 1];
+
+          if (
+            fromPath &&
+            fromPath !== "undefined" &&
+            fromPath !== "null"
+          ) {
+            id = fromPath;
+            setEffectiveElmaId(fromPath);
+          }
+        }
+      }
+
+      if (
+        !id ||
+        id === "undefined" ||
+        id === "null"
+      ) {
+        if (!cancelled) {
+          setError("Некорректный идентификатор заявки");
+          setLoading(false);
+        }
+        return;
+      }
+
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(`/api/requests/${elmaId}`, {
+        const response = await fetch(`/api/requests/${id}`, {
           method: "GET",
         });
         const data = (await response.json()) as ApiResponse;
