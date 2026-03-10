@@ -26,14 +26,11 @@ export async function GET() {
     }
 
     const companyId: string = profile.elma_company_id;
-    const contactId: string = profile.elma_contact_id;
-
-    const isExecutor = Boolean(profile.is_executor);
+    const initiatorId: string = profile.elma_contact_id;
 
     const elmaRequests = await listRequests({
       companyId,
-      initiatorId: isExecutor ? undefined : contactId,
-      executorId: isExecutor ? contactId : undefined,
+      initiatorId,
     });
 
     if (elmaRequests.length > 0) {
@@ -41,17 +38,15 @@ export async function GET() {
       const valueStrings: string[] = [];
 
       elmaRequests.forEach((item, index) => {
-        const baseIndex = index * 13;
+        const baseIndex = index * 12;
         const company = item.company?.[0] ?? companyId;
-        const initiator = item.iniciator?.[0] ?? contactId;
-        const executor = item.executor?.[0] ?? null;
+        const initiator = item.iniciator?.[0] ?? initiatorId;
 
         values.push(
           item.__id,
           item.__index ?? null,
           company,
           initiator,
-          executor,
           item.headers ?? null,
           item.problem_description ?? null,
           null, // urgency_code (not normalized in sample)
@@ -79,7 +74,6 @@ export async function GET() {
           elma_index,
           elma_company_id,
           elma_initiator_id,
-          elma_executor_id,
           headers,
           problem_description,
           urgency_code,
@@ -94,7 +88,6 @@ export async function GET() {
           elma_index = excluded.elma_index,
           elma_company_id = excluded.elma_company_id,
           elma_initiator_id = excluded.elma_initiator_id,
-          elma_executor_id = excluded.elma_executor_id,
           headers = excluded.headers,
           problem_description = excluded.problem_description,
           urgency_code = excluded.urgency_code,
@@ -118,10 +111,7 @@ export async function GET() {
       deadlineDate: item.deadline_date,
     }));
 
-    return NextResponse.json({
-      items: normalized,
-      isExecutor,
-    });
+    return NextResponse.json({ items: normalized });
   } catch (error) {
     console.error("Requests list error:", error);
     return NextResponse.json(
