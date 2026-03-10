@@ -23,6 +23,7 @@ type MessageRow = {
 async function loadTicketForUser(
   elmaId: string,
   profileId: string,
+  isExecutor: boolean,
 ): Promise<TicketRow | null> {
   const sql = `
     select
@@ -38,7 +39,7 @@ async function loadTicketForUser(
     from public.tickets t
     join public.profiles p
       on p.id = $1
-     and p.elma_company_id = t.elma_company_id
+     ${isExecutor ? "" : "and p.elma_company_id = t.elma_company_id"}
      and (
        p.elma_contact_id = t.elma_initiator_id
        or (
@@ -91,7 +92,11 @@ export async function GET(
       );
     }
 
-    const ticket = await loadTicketForUser(elmaId, profile.id as string);
+    const ticket = await loadTicketForUser(
+      elmaId,
+      profile.id as string,
+      profile.is_executor,
+    );
 
     if (!ticket) {
       return NextResponse.json(
@@ -168,7 +173,11 @@ export async function POST(
       );
     }
 
-    const ticket = await loadTicketForUser(elmaId, profile.id as string);
+    const ticket = await loadTicketForUser(
+      elmaId,
+      profile.id as string,
+      profile.is_executor,
+    );
 
     if (!ticket) {
       return NextResponse.json(
