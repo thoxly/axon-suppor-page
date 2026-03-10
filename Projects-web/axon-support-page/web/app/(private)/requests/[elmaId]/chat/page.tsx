@@ -50,6 +50,8 @@ export default function ChatPage({
 }) {
   const { elmaId } = params;
 
+  const [effectiveElmaId, setEffectiveElmaId] = useState<string | null>(elmaId);
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -64,10 +66,36 @@ export default function ChatPage({
     let cancelled = false;
 
     const load = async () => {
+      let id = effectiveElmaId;
+
+      if (!id || id === "undefined" || id === "null") {
+        if (typeof window !== "undefined") {
+          const segments = window.location.pathname.split("/").filter(Boolean);
+          const fromPath = segments[segments.length - 2];
+
+          if (
+            fromPath &&
+            fromPath !== "undefined" &&
+            fromPath !== "null"
+          ) {
+            id = fromPath;
+            setEffectiveElmaId(fromPath);
+          }
+        }
+      }
+
+      if (!id || id === "undefined" || id === "null") {
+        if (!cancelled) {
+          setError("Некорректный идентификатор заявки");
+          setLoading(false);
+        }
+        return;
+      }
+
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(`/api/requests/${elmaId}/messages`, {
+        const response = await fetch(`/api/requests/${id}/messages`, {
           method: "GET",
         });
         const data = (await response.json()) as GetResponse;
@@ -103,7 +131,7 @@ export default function ChatPage({
     return () => {
       cancelled = true;
     };
-  }, [elmaId]);
+  }, [elmaId, effectiveElmaId]);
 
   useEffect(() => {
     if (bottomRef.current) {
@@ -123,7 +151,14 @@ export default function ChatPage({
     setError(null);
 
     try {
-      const response = await fetch(`/api/requests/${elmaId}/messages`, {
+      const id = effectiveElmaId ?? elmaId;
+
+      if (!id || id === "undefined" || id === "null") {
+        setError("Некорректный идентификатор заявки");
+        return;
+      }
+
+      const response = await fetch(`/api/requests/${id}/messages`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -159,7 +194,7 @@ export default function ChatPage({
       <header className="flex items-center justify-between border-b border-slate-800 px-4 py-2">
         <div className="flex items-center gap-2 text-xs text-slate-300">
           <Link
-            href={`/requests/${elmaId}`}
+            href={`/requests/${effectiveElmaId ?? elmaId}`}
             className="text-sky-300 hover:text-sky-200"
           >
             ← К заявке
