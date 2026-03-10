@@ -12,10 +12,17 @@ type RequestListItem = {
   deadlineDate?: string | null;
 };
 
-type ApiResponse = {
-  items: RequestListItem[];
-  error?: string;
-};
+type ApiResponse =
+  | {
+      items: RequestListItem[];
+      error?: string;
+      isExecutor?: boolean;
+    }
+  | {
+      error: string;
+      items?: undefined;
+      isExecutor?: boolean;
+    };
 
 function formatDate(value?: string | null) {
   if (!value) return "—";
@@ -57,6 +64,7 @@ export default function RequestsPage() {
   const [items, setItems] = useState<RequestListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isExecutor, setIsExecutor] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -78,7 +86,12 @@ export default function RequestsPage() {
         }
 
         if (!cancelled) {
-          setItems(data.items ?? []);
+          if (data.items) {
+            setItems(data.items);
+          }
+          if (typeof data.isExecutor === "boolean") {
+            setIsExecutor(data.isExecutor);
+          }
         }
       } catch {
         if (!cancelled) {
@@ -104,9 +117,11 @@ export default function RequestsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-lg font-semibold text-slate-50">Мои обращения</h1>
-          <p className="text-xs text-slate-400">
-            Список заявок из ELMA365, где вы являетесь инициатором.
+          <h1 className="text-lg font-semibold text-slate-900">Мои обращения</h1>
+          <p className="text-xs text-slate-500">
+            {isExecutor
+              ? "Список заявок из ELMA365, где вы являетесь исполнителем."
+              : "Список заявок из ELMA365, где вы являетесь инициатором."}
           </p>
         </div>
         <Link
@@ -117,15 +132,15 @@ export default function RequestsPage() {
         </Link>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900/50">
-        <div className="border-b border-slate-800 bg-slate-900/60 px-4 py-2 text-xs font-medium text-slate-300">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <div className="border-b border-slate-200 bg-slate-50 px-4 py-2 text-xs font-medium text-slate-600">
           Всего заявок: {items.length}
         </div>
 
         {/* Desktop / tablet table */}
         <div className="hidden max-h-[70vh] overflow-y-auto md:block">
           <table className="min-w-full border-collapse text-xs">
-            <thead className="bg-slate-900/80 text-left text-[11px] uppercase tracking-wide text-slate-400">
+            <thead className="bg-slate-50 text-left text-[11px] uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="px-4 py-2">№</th>
                 <th className="px-4 py-2">Тема</th>
@@ -134,25 +149,25 @@ export default function RequestsPage() {
                 <th className="px-4 py-2">Срок</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/80">
+            <tbody className="divide-y divide-slate-100">
               {loading &&
                 Array.from({ length: 5 }).map((_, index) => (
                   <tr key={`skeleton-desktop-${index}`} className="animate-pulse">
                     <td className="whitespace-nowrap px-4 py-3">
-                      <div className="h-3 w-8 rounded bg-slate-700/60" />
+                      <div className="h-3 w-8 rounded bg-slate-200" />
                     </td>
                     <td className="px-4 py-3">
-                      <div className="mb-1 h-3 w-3/4 rounded bg-slate-700/60" />
-                      <div className="h-3 w-1/2 rounded bg-slate-800/80" />
+                      <div className="mb-1 h-3 w-3/4 rounded bg-slate-200" />
+                      <div className="h-3 w-1/2 rounded bg-slate-100" />
                     </td>
                     <td className="px-4 py-3">
-                      <div className="h-5 w-20 rounded-full bg-slate-700/60" />
+                      <div className="h-5 w-20 rounded-full bg-slate-200" />
                     </td>
                     <td className="whitespace-nowrap px-4 py-3">
-                      <div className="h-3 w-24 rounded bg-slate-700/60" />
+                      <div className="h-3 w-24 rounded bg-slate-200" />
                     </td>
                     <td className="whitespace-nowrap px-4 py-3">
-                      <div className="h-3 w-24 rounded bg-slate-700/60" />
+                      <div className="h-3 w-24 rounded bg-slate-200" />
                     </td>
                   </tr>
                 ))}
@@ -161,7 +176,7 @@ export default function RequestsPage() {
                 <tr>
                   <td
                     colSpan={5}
-                    className="px-4 py-6 text-center text-xs text-rose-400"
+                    className="px-4 py-6 text-center text-xs text-rose-500"
                   >
                     {error}
                   </td>
@@ -172,7 +187,7 @@ export default function RequestsPage() {
                 <tr>
                   <td
                     colSpan={5}
-                    className="px-4 py-6 text-center text-xs text-slate-400"
+                    className="px-4 py-6 text-center text-xs text-slate-500"
                   >
                     У вас пока нет обращений.
                   </td>
@@ -186,25 +201,25 @@ export default function RequestsPage() {
 
                   const statusClasses =
                     status.tone === "emerald"
-                      ? "bg-emerald-500/10 text-emerald-300 ring-emerald-500/30"
+                      ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
                       : status.tone === "amber"
-                        ? "bg-amber-500/10 text-amber-200 ring-amber-500/30"
+                        ? "bg-amber-50 text-amber-700 ring-amber-200"
                         : status.tone === "sky"
-                          ? "bg-sky-500/10 text-sky-300 ring-sky-500/30"
-                          : "bg-slate-700/40 text-slate-200 ring-slate-500/30";
+                          ? "bg-sky-50 text-sky-700 ring-sky-200"
+                          : "bg-slate-100 text-slate-700 ring-slate-200";
 
                   return (
                     <tr
                       key={item.id}
-                      className="transition-colors hover:bg-slate-800/60"
+                      className="transition-colors hover:bg-slate-50"
                     >
-                      <td className="whitespace-nowrap px-4 py-2 text-slate-200">
+                      <td className="whitespace-nowrap px-4 py-2 text-slate-900">
                         {item.index ?? "—"}
                       </td>
                       <td className="max-w-[280px] px-4 py-2">
                         <Link
                           href={`/requests/${item.id}`}
-                          className="line-clamp-2 text-xs font-medium text-sky-200 hover:underline"
+                          className="line-clamp-2 text-xs font-medium text-sky-700 hover:underline"
                         >
                           {item.headers ?? "(без темы)"}
                         </Link>
@@ -216,10 +231,10 @@ export default function RequestsPage() {
                           {status.label}
                         </span>
                       </td>
-                      <td className="whitespace-nowrap px-4 py-2 text-slate-300">
+                      <td className="whitespace-nowrap px-4 py-2 text-slate-700">
                         {formatDate(item.creationDate)}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-2 text-slate-300">
+                      <td className="whitespace-nowrap px-4 py-2 text-slate-700">
                         {formatDate(item.deadlineDate)}
                       </td>
                     </tr>
@@ -235,31 +250,31 @@ export default function RequestsPage() {
             Array.from({ length: 4 }).map((_, index) => (
               <div
                 key={`skeleton-mobile-${index}`}
-                className="animate-pulse space-y-2 rounded-lg border border-slate-800 bg-slate-900/80 p-3"
+                className="animate-pulse space-y-2 rounded-lg border border-slate-200 bg-white p-3"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <div className="h-3 w-16 rounded bg-slate-700/60" />
-                  <div className="h-5 w-20 rounded-full bg-slate-700/60" />
+                  <div className="h-3 w-16 rounded bg-slate-200" />
+                  <div className="h-5 w-20 rounded-full bg-slate-200" />
                 </div>
                 <div className="space-y-1">
-                  <div className="h-3 w-full rounded bg-slate-700/60" />
-                  <div className="h-3 w-3/4 rounded bg-slate-800/80" />
+                  <div className="h-3 w-full rounded bg-slate-200" />
+                  <div className="h-3 w-3/4 rounded bg-slate-100" />
                 </div>
                 <div className="flex items-center justify-between gap-2 text-[10px]">
-                  <div className="h-3 w-24 rounded bg-slate-700/60" />
-                  <div className="h-3 w-24 rounded bg-slate-700/60" />
+                  <div className="h-3 w-24 rounded bg-slate-200" />
+                  <div className="h-3 w-24 rounded bg-slate-200" />
                 </div>
               </div>
             ))}
 
           {!loading && error && (
-            <p className="px-1 py-4 text-center text-xs text-rose-400">
+            <p className="px-1 py-4 text-center text-xs text-rose-500">
               {error}
             </p>
           )}
 
           {!loading && !error && items.length === 0 && (
-            <p className="px-1 py-4 text-center text-xs text-slate-400">
+            <p className="px-1 py-4 text-center text-xs text-slate-500">
               У вас пока нет обращений.
             </p>
           )}
@@ -269,23 +284,23 @@ export default function RequestsPage() {
             items.map((item) => {
               const status = mapStatus(item.status);
 
-              const statusClasses =
-                status.tone === "emerald"
-                  ? "bg-emerald-500/10 text-emerald-300 ring-emerald-500/30"
-                  : status.tone === "amber"
-                    ? "bg-amber-500/10 text-amber-200 ring-amber-500/30"
-                    : status.tone === "sky"
-                      ? "bg-sky-500/10 text-sky-300 ring-sky-500/30"
-                      : "bg-slate-700/40 text-slate-200 ring-slate-500/30";
+                const statusClasses =
+                  status.tone === "emerald"
+                    ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+                    : status.tone === "amber"
+                      ? "bg-amber-50 text-amber-700 ring-amber-200"
+                      : status.tone === "sky"
+                        ? "bg-sky-50 text-sky-700 ring-sky-200"
+                        : "bg-slate-100 text-slate-700 ring-slate-200";
 
               return (
                 <Link
                   key={item.id}
                   href={`/requests/${item.id}`}
-                  className="block rounded-lg border border-slate-800 bg-slate-900/80 p-3 transition hover:border-sky-500/60 hover:bg-slate-900"
+                  className="block rounded-lg border border-slate-200 bg-white p-3 transition hover:border-sky-500/60 hover:bg-slate-50"
                 >
                   <div className="mb-1 flex items-center justify-between gap-2">
-                    <p className="text-[11px] text-slate-400">
+                    <p className="text-[11px] text-slate-500">
                       № {item.index ?? "—"}
                     </p>
                     <span
@@ -294,10 +309,10 @@ export default function RequestsPage() {
                       {status.label}
                     </span>
                   </div>
-                  <p className="line-clamp-3 text-xs font-medium text-slate-50">
+                  <p className="line-clamp-3 text-xs font-medium text-slate-900">
                     {item.headers ?? "(без темы)"}
                   </p>
-                  <div className="mt-2 flex items-center justify-between gap-2 text-[10px] text-slate-400">
+                  <div className="mt-2 flex items-center justify-between gap-2 text-[10px] text-slate-500">
                     <span>Создана: {formatDate(item.creationDate)}</span>
                     <span>Срок: {formatDate(item.deadlineDate)}</span>
                   </div>

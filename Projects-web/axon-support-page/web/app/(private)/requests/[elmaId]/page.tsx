@@ -170,17 +170,15 @@ export default function RequestDetailsPage({
     <div className="space-y-4">
       <Link
         href="/requests"
-        className="inline-flex items-center text-xs font-medium text-slate-300 hover:text-slate-50"
+        className="inline-flex items-center text-xs font-medium text-sky-700 hover:text-sky-800"
       >
         ← Вернуться к списку обращений
       </Link>
 
-      {loading && (
-        <p className="text-xs text-slate-400">Загрузка заявки...</p>
-      )}
+      {loading && <p className="text-xs text-slate-500">Загрузка заявки...</p>}
 
       {!loading && error && (
-        <p className="text-xs text-rose-400" role="alert">
+        <p className="text-xs text-rose-500" role="alert">
           {error}
         </p>
       )}
@@ -189,41 +187,41 @@ export default function RequestDetailsPage({
         <div className="space-y-4">
           <header className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-500">
                 Заявка № {item.__index} · ID {item.__id}
               </p>
-              <h1 className="mt-1 text-lg font-semibold text-slate-50">
+              <h1 className="mt-1 text-lg font-semibold text-slate-900">
                 {item.headers ?? "(без темы)"}
               </h1>
-              <p className="mt-1 text-xs text-slate-400">
+              <p className="mt-1 text-xs text-slate-500">
                 Создана: {formatDate(item.creation_date)} · Срок:{" "}
                 {formatDate(item.deadline_date)}
               </p>
             </div>
             <div className="flex flex-col items-end gap-2">
-              <span className="inline-flex rounded-full bg-slate-800 px-3 py-1 text-xs font-medium text-slate-100">
+              <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-800">
                 {mapStatus(item.__status?.status)}
               </span>
               <Link
                 href={`/requests/${item.__id}/chat`}
-                className="inline-flex items-center rounded-lg bg-sky-500 px-3 py-1.5 text-[11px] font-medium text-white shadow-sm transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+                className="inline-flex items-center rounded-lg bg-sky-500 px-3 py-1.5 text-[11px] font-medium text-white shadow-sm transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
                 aria-disabled={!canOpenChat}
               >
                 Переписка по заявке
               </Link>
               {!canOpenChat && (
-                <p className="max-w-[200px] text-right text-[10px] text-slate-400">
+                <p className="max-w-[200px] text-right text-[10px] text-slate-500">
                   По закрытым заявкам переписка только для чтения.
                 </p>
               )}
             </div>
           </header>
 
-          <section className="space-y-2 rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-            <h2 className="text-xs font-semibold text-slate-200">
+          <section className="space-y-2 rounded-xl border border-slate-200 bg-white p-4">
+            <h2 className="text-xs font-semibold text-slate-900">
               Описание обращения
             </h2>
-            <div className="prose prose-invert max-w-none text-xs text-slate-50">
+            <div className="prose max-w-none text-xs text-slate-900">
               {item.problem_description ? (
                 <div
                   dangerouslySetInnerHTML={{
@@ -231,7 +229,7 @@ export default function RequestDetailsPage({
                   }}
                 />
               ) : (
-                <p className="text-slate-400">Описание отсутствует.</p>
+                <p className="text-slate-500">Описание отсутствует.</p>
               )}
             </div>
           </section>

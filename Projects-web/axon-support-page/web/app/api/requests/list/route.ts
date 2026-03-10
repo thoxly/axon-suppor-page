@@ -111,7 +111,10 @@ export async function GET() {
       deadlineDate: item.deadline_date,
     }));
 
-    return NextResponse.json({ items: normalized });
+    return NextResponse.json({
+      items: normalized,
+      isExecutor: Boolean(profile.is_executor),
+    });
   } catch (error) {
     console.error("Requests list error:", error);
     return NextResponse.json(
