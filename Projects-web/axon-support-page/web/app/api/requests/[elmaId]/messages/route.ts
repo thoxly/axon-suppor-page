@@ -61,6 +61,13 @@ export async function GET(
   try {
     const { elmaId } = await context.params;
 
+    if (!elmaId || elmaId === "undefined" || elmaId === "null") {
+      return NextResponse.json(
+        { error: "Некорректный идентификатор заявки" },
+        { status: 400 },
+      );
+    }
+
     const supabase = await createClient();
     const {
       data: { user },
@@ -125,6 +132,13 @@ export async function POST(
 ) {
   try {
     const { elmaId } = await context.params;
+
+    if (!elmaId || elmaId === "undefined" || elmaId === "null") {
+      return NextResponse.json(
+        { error: "Некорректный идентификатор заявки" },
+        { status: 400 },
+      );
+    }
 
     const supabase = await createClient();
     const {

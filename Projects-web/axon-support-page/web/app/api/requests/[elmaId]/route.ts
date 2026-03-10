@@ -13,7 +13,16 @@ export async function GET(
   context: { params: Promise<Params> },
 ) {
   try {
-    const { elmaId } = await context.params;
+    const params = await context.params;
+    console.error("API /api/requests/[elmaId] params:", params);
+    const { elmaId } = params;
+
+    if (!elmaId || elmaId === "undefined" || elmaId === "null") {
+      return NextResponse.json(
+        { error: "Некорректный идентификатор заявки" },
+        { status: 400 },
+      );
+    }
 
     const supabase = await createClient();
 
