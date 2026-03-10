@@ -69,7 +69,16 @@ export default function NewRequestPage() {
         return;
       }
 
-      router.push(`/requests/${data.item.__id}`);
+      if (!data.item || !data.item.__id) {
+        setError(
+          "Обращение создано, но ELMA365 не вернула идентификатор. Откройте список обращений, чтобы проверить результат.",
+        );
+        return;
+      }
+
+      // После успешного создания переходим в список,
+      // который подхватит новую заявку при следующей синхронизации.
+      router.push("/requests");
       router.refresh();
     } catch {
       setError(
