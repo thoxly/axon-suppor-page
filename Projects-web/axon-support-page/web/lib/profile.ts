@@ -24,6 +24,24 @@ type ElmaContactsResponse = {
   };
 };
 
+type ElmaUser = {
+  email?: string;
+  fullname?: {
+    firstname?: string;
+    lastname?: string;
+    middlename?: string;
+  };
+};
+
+type ElmaUsersResponse = {
+  success: boolean;
+  error: string;
+  result?: {
+    result?: ElmaUser[];
+    total?: number;
+  };
+};
+
 async function fetchContactByEmail(
   email: string,
 ): Promise<ElmaContact | null> {
@@ -32,24 +50,27 @@ async function fetchContactByEmail(
     throw new Error("ELMA API key is not configured");
   }
 
-  const response = await fetch(`${ELMA_BASE_URL}/app/_clients/_contacts/list`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${ELMA_API_KEY}`,
-    },
-    body: JSON.stringify({
-      active: true,
-      filter: {
-        tf: {
-          _email: email,
+  const response = await fetch(
+    `${ELMA_BASE_URL}/app/_clients/_contacts/list`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${ELMA_API_KEY}`,
+      },
+      body: JSON.stringify({
+        active: true,
+        filter: {
+          tf: {
+            _email: email,
+          },
         },
-      },
-      fields: {
-        "*": true,
-      },
-    }),
-  });
+        fields: {
+          "*": true,
+        },
+      }),
+    },
+  );
 
   if (!response.ok) {
     const text = await response.text();
@@ -70,6 +91,51 @@ async function fetchContactByEmail(
   }
 
   return contacts[0] ?? null;
+}
+
+async function fetchUserByEmail(email: string): Promise<ElmaUser | null> {
+  if (!ELMA_API_KEY) {
+    console.error("ELMA_API_KEY is not set");
+    throw new Error("ELMA API key is not configured");
+  }
+
+  const response = await fetch(`${ELMA_BASE_URL}/user/list`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${ELMA_API_KEY}`,
+    },
+    body: JSON.stringify({
+      filter: {
+        tf: {
+          email,
+        },
+      },
+      fields: {
+        "*": true,
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    console.error("ELMA users API error:", response.status, text);
+    throw new Error("Failed to query ELMA users");
+  }
+
+  const data = (await response.json()) as ElmaUsersResponse;
+
+  if (!data.success) {
+    console.error("ELMA users API logical error:", data.error);
+    throw new Error("ELMA users API returned an error");
+  }
+
+  const users = data.result?.result ?? [];
+  if (!Array.isArray(users) || users.length === 0) {
+    return null;
+  }
+
+  return users[0] ?? null;
 }
 
 export async function getOrCreateCurrentProfile() {
@@ -103,7 +169,10 @@ export async function getOrCreateCurrentProfile() {
     return existingProfile;
   }
 
-  const contact = await fetchContactByEmail(email);
+  const [contact, userInfo] = await Promise.all([
+    fetchContactByEmail(email),
+    fetchUserByEmail(email),
+  ]);
 
   if (!contact) {
     console.error(
@@ -124,12 +193,27 @@ export async function getOrCreateCurrentProfile() {
     return null;
   }
 
-  const fullname = contact._fullname;
+  const userFullname = userInfo?.fullname;
+  const contactFullname = contact._fullname;
+
   const fullName =
-    fullname &&
-    [fullname.lastname, fullname.firstname, fullname.middlename]
-      .filter(Boolean)
-      .join(" ");
+    (userFullname &&
+      [
+        userFullname.lastname,
+        userFullname.firstname,
+        userFullname.middlename,
+      ]
+        .filter(Boolean)
+        .join(" ")) ||
+    (contactFullname &&
+      [
+        contactFullname.lastname,
+        contactFullname.firstname,
+        contactFullname.middlename,
+      ]
+        .filter(Boolean)
+        .join(" ")) ||
+    null;
 
   const { data: newProfile, error: insertError } = await supabase
     .from("profiles")
@@ -139,6 +223,7 @@ export async function getOrCreateCurrentProfile() {
       elma_contact_id: contact.__id,
       elma_company_id: elmaCompanyId,
       full_name: fullName,
+      is_executor: Boolean(userInfo),
     })
     .select("*")
     .single();
