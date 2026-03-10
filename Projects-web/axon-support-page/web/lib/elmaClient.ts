@@ -28,7 +28,7 @@ export type ElmaRequestListItem = {
   category?: unknown;
   company?: string[];
   iniciator?: string[];
-  executor?: unknown;
+  executor?: string[];
   __status?: ElmaRequestStatus;
   creation_date?: string;
   deadline_date?: string | null;
@@ -63,7 +63,8 @@ export type ElmaCategoryCode = "general" | (string & {});
 
 export async function listRequests(params: {
   companyId: string;
-  initiatorId: string;
+  initiatorId?: string;
+  executorId?: string;
   statusCodes?: number[];
   from?: number;
 }): Promise<ElmaRequestListItem[]> {
@@ -72,7 +73,6 @@ export async function listRequests(params: {
     filter: {
       tf: {
         company: [params.companyId],
-        iniciator: [params.initiatorId],
       },
     },
     from: params.from ?? 0,
@@ -80,6 +80,16 @@ export async function listRequests(params: {
       "*": true,
     },
   };
+
+  if (params.initiatorId) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (body.filter as any).tf.iniciator = [params.initiatorId];
+  }
+
+  if (params.executorId) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (body.filter as any).tf.executor = [params.executorId];
+  }
 
   if (params.statusCodes && params.statusCodes.length > 0) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
