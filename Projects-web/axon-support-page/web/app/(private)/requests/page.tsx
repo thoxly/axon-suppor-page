@@ -117,19 +117,23 @@ export default function RequestsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-lg font-semibold text-slate-900">Мои обращения</h1>
+          <h1 className="text-lg font-semibold text-slate-900">
+            {isExecutor ? "Заявки" : "Мои обращения"}
+          </h1>
           <p className="text-xs text-slate-500">
             {isExecutor
               ? "Список заявок из ELMA365, где вы являетесь исполнителем."
               : "Список заявок из ELMA365, где вы являетесь инициатором."}
           </p>
         </div>
-        <Link
-          href="/requests/new"
-          className="inline-flex items-center rounded-lg bg-sky-500 px-3 py-2 text-xs font-medium text-white shadow-sm transition hover:bg-sky-400"
-        >
-          Создать обращение
-        </Link>
+        {!isExecutor && (
+          <Link
+            href="/requests/new"
+            className="inline-flex items-center rounded-lg bg-sky-500 px-3 py-2 text-xs font-medium text-white shadow-sm transition hover:bg-sky-400"
+          >
+            Создать обращение
+          </Link>
+        )}
       </div>
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">

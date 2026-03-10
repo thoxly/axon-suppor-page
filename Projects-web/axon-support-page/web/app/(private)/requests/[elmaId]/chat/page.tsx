@@ -254,8 +254,12 @@ export default function ChatPage({
                   {message.body}
                 </div>
                 <span className="text-[10px] text-slate-400">
-                  {isCurrentUser ? "Вы" : "Поддержка"} ·{" "}
-                  {formatTime(message.created_at)}
+                  {isCurrentUser
+                    ? "Вы"
+                    : isExecutor
+                      ? "Клиент"
+                      : "Поддержка"}{" "}
+                  · {formatTime(message.created_at)}
                 </span>
               </div>
             );
