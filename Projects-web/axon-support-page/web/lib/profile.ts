@@ -140,7 +140,7 @@ export async function getOrCreateCurrentProfile() {
     return null;
   }
 
-  const companies = contact._companies ?? [];
+  const companies = personResult.person._companies ?? [];
   const elmaCompanyId = companies[0];
 
   if (!elmaCompanyId) {
@@ -151,7 +151,7 @@ export async function getOrCreateCurrentProfile() {
     return null;
   }
 
-  const fullname = contact._fullname;
+  const fullname = personResult.person._fullname;
   const fullName =
     fullname &&
     [fullname.lastname, fullname.firstname, fullname.middlename]
