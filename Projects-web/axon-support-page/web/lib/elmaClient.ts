@@ -111,6 +111,11 @@ export async function listRequests(params: {
 export async function getRequestById(
   id: string,
 ): Promise<ElmaRequestGetResponse["item"]> {
+  if (!id || id === "undefined" || id === "null") {
+    console.error("getRequestById called with invalid id:", id);
+    throw new Error("Invalid ELMA request id");
+  }
+
   const response = await fetch(
     `${ELMA_BASE_URL}/app/requests/requests/${id}/get`,
     {
