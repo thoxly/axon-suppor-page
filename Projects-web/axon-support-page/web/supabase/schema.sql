@@ -104,11 +104,41 @@ begin
     from pg_policies
     where schemaname = 'public'
       and tablename = 'tickets'
-      and policyname = 'Users can upsert their own tickets'
+      and policyname = 'Users can insert their own tickets'
   ) then
-    create policy "Users can upsert their own tickets"
+    create policy "Users can insert their own tickets"
       on public.tickets
-      for insert, update
+      for insert
+      with check (
+        exists (
+          select 1
+          from public.profiles p
+          where p.id = auth.uid()
+            and p.elma_company_id = elma_company_id
+            and p.elma_contact_id = elma_initiator_id
+        )
+      );
+  end if;
+
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = 'tickets'
+      and policyname = 'Users can update their own tickets'
+  ) then
+    create policy "Users can update their own tickets"
+      on public.tickets
+      for update
+      using (
+        exists (
+          select 1
+          from public.profiles p
+          where p.id = auth.uid()
+            and p.elma_company_id = elma_company_id
+            and p.elma_contact_id = elma_initiator_id
+        )
+      )
       with check (
         exists (
           select 1

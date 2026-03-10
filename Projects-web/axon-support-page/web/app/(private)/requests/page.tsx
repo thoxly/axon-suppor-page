@@ -109,6 +109,12 @@ export default function RequestsPage() {
             Список заявок из ELMA365, где вы являетесь инициатором.
           </p>
         </div>
+        <Link
+          href="/requests/new"
+          className="inline-flex items-center rounded-lg bg-sky-500 px-3 py-2 text-xs font-medium text-white shadow-sm transition hover:bg-sky-400"
+        >
+          Создать обращение
+        </Link>
       </div>
 
       <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900/50">

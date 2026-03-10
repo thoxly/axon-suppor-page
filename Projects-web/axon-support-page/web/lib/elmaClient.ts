@@ -52,6 +52,15 @@ export type ElmaRequestGetResponse = {
   };
 };
 
+export type ElmaUrgencyCode =
+  | "very_low"
+  | "low"
+  | "medium"
+  | "high"
+  | "very_high";
+
+export type ElmaCategoryCode = "general" | (string & {});
+
 export async function listRequests(params: {
   companyId: string;
   initiatorId: string;
@@ -121,6 +130,54 @@ export async function getRequestById(
   if (!data.success) {
     console.error("ELMA getRequestById logical error:", data.error);
     throw new Error("ELMA getRequestById returned an error");
+  }
+
+  return data.item;
+}
+
+export type ElmaRequestCreateResponse = {
+  success: boolean;
+  error: string;
+  item?: ElmaRequestListItem;
+};
+
+export async function createRequest(params: {
+  companyId: string;
+  initiatorId: string;
+  headers: string;
+  problemDescription: string;
+  urgencyCode: ElmaUrgencyCode;
+  categoryCode?: ElmaCategoryCode;
+}): Promise<ElmaRequestCreateResponse["item"]> {
+  const body = {
+    context: {
+      company: [params.companyId],
+      iniciator: [params.initiatorId],
+      headers: params.headers,
+      problem_description: params.problemDescription,
+      urgency: [{ code: params.urgencyCode }],
+      category: [{ code: params.categoryCode ?? "general" }],
+    },
+    withEventForceCreate: true,
+  };
+
+  const response = await fetch(`${ELMA_BASE_URL}/app/requests/requests/create`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    console.error("ELMA createRequest error:", response.status, text);
+    throw new Error("Failed to create request in ELMA");
+  }
+
+  const data = (await response.json()) as ElmaRequestCreateResponse;
+
+  if (!data.success) {
+    console.error("ELMA createRequest logical error:", data.error);
+    throw new Error("ELMA createRequest returned an error");
   }
 
   return data.item;
