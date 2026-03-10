@@ -9,13 +9,18 @@ type Params = {
 };
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   context: { params: Promise<Params> },
 ) {
   try {
     const params = await context.params;
     console.error("API /api/requests/[elmaId] params:", params);
-    const { elmaId } = params;
+
+    // Основной источник правды — сам URL запроса,
+    // чтобы обойти возможные проблемы с context.params
+    const url = new URL(request.url);
+    const pathSegments = url.pathname.split("/").filter(Boolean);
+    const elmaId = pathSegments[pathSegments.length - 1];
 
     if (!elmaId || elmaId === "undefined" || elmaId === "null") {
       return NextResponse.json(
