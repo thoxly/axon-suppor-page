@@ -5,7 +5,7 @@ const ELMA_BASE_URL =
   process.env.ELMA_API_BASE_URL ?? "https://elma-dev.copycon.ru/pub/v1";
 const ELMA_API_KEY = process.env.ELMA_API_KEY;
 
-type ElmaContact = {
+type ElmaPerson = {
   __id: string;
   _email?: { email: string }[];
   _companies?: string[];
@@ -16,22 +16,25 @@ type ElmaContact = {
   };
 };
 
-type ElmaContactsResponse = {
+type ElmaListResponse = {
   success: boolean;
   error: string;
   result?: {
-    result?: ElmaContact[];
+    result?: ElmaPerson[];
     total?: number;
   };
 };
 
-async function findContactByEmail(email: string): Promise<ElmaContact | null> {
+async function fetchElmaRecordByEmail(
+  urlPath: string,
+  email: string,
+): Promise<ElmaPerson | null> {
   if (!ELMA_API_KEY) {
     console.error("ELMA_API_KEY is not set");
     throw new Error("ELMA API key is not configured");
   }
 
-  const response = await fetch(`${ELMA_BASE_URL}/app/_clients/_contacts/list`, {
+  const response = await fetch(`${ELMA_BASE_URL}${urlPath}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -52,23 +55,49 @@ async function findContactByEmail(email: string): Promise<ElmaContact | null> {
 
   if (!response.ok) {
     const text = await response.text();
-    console.error("ELMA contacts API error:", response.status, text);
-    throw new Error("Failed to query ELMA contacts");
+    console.error("ELMA list API error:", response.status, text);
+    throw new Error("Failed to query ELMA");
   }
 
-  const data = (await response.json()) as ElmaContactsResponse;
+  const data = (await response.json()) as ElmaListResponse;
 
   if (!data.success) {
-    console.error("ELMA contacts API logical error:", data.error);
-    throw new Error("ELMA contacts API returned an error");
+    console.error("ELMA list API logical error:", data.error);
+    throw new Error("ELMA list API returned an error");
   }
 
-  const contacts = data.result?.result ?? [];
-  if (!Array.isArray(contacts) || contacts.length === 0) {
+  const records = data.result?.result ?? [];
+  if (!Array.isArray(records) || records.length === 0) {
     return null;
   }
 
-  return contacts[0] ?? null;
+  return records[0] ?? null;
+}
+
+async function findPersonByEmail(
+  email: string,
+): Promise<{ person: ElmaPerson; isExecutor: boolean } | null> {
+  // Сначала ищем среди клиентских контактов
+  const contact = await fetchElmaRecordByEmail(
+    "/app/_clients/_contacts/list",
+    email,
+  );
+
+  if (contact) {
+    return { person: contact, isExecutor: false };
+  }
+
+  // Если не нашли, пробуем среди сотрудников (исполнителей)
+  const employee = await fetchElmaRecordByEmail(
+    "/app/_system_catalogs/_employees/list",
+    email,
+  );
+
+  if (employee) {
+    return { person: employee, isExecutor: true };
+  }
+
+  return null;
 }
 
 export async function POST(request: Request) {
@@ -83,9 +112,9 @@ export async function POST(request: Request) {
       );
     }
 
-    const contact = await findContactByEmail(email);
+    const personResult = await findPersonByEmail(email);
 
-    if (!contact) {
+    if (!personResult) {
       return NextResponse.json(
         { error: "Пользователь с таким email не найден или не имеет доступа" },
         { status: 403 },
