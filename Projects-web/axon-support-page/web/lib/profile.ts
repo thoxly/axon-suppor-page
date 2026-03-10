@@ -25,6 +25,7 @@ type ElmaContactsResponse = {
 };
 
 type ElmaUser = {
+  __id?: string;
   email?: string;
   fullname?: {
     firstname?: string;
@@ -174,7 +175,7 @@ export async function getOrCreateCurrentProfile() {
     fetchUserByEmail(email),
   ]);
 
-  if (!contact) {
+  if (!contact && !userInfo) {
     console.error(
       "ELMA contact not found for authenticated user, email:",
       email,
@@ -182,19 +183,8 @@ export async function getOrCreateCurrentProfile() {
     return null;
   }
 
-  const companies = contact._companies ?? [];
-  const elmaCompanyId = companies[0];
-
-  if (!elmaCompanyId) {
-    console.error(
-      "ELMA contact has no companies for authenticated user, email:",
-      email,
-    );
-    return null;
-  }
-
   const userFullname = userInfo?.fullname;
-  const contactFullname = contact._fullname;
+  const contactFullname = contact?._fullname;
 
   const fullName =
     (userFullname &&
@@ -215,12 +205,42 @@ export async function getOrCreateCurrentProfile() {
         .join(" ")) ||
     null;
 
+  let elmaContactId: string | undefined;
+  let elmaCompanyId: string | undefined;
+
+  if (contact) {
+    const companies = contact._companies ?? [];
+    elmaCompanyId = companies[0];
+    elmaContactId = contact.__id;
+
+    if (!elmaCompanyId) {
+      console.error(
+        "ELMA contact has no companies for authenticated user, email:",
+        email,
+      );
+      return null;
+    }
+  } else if (userInfo && userInfo.__id) {
+    // Исполнитель без клиентского контакта: используем его user id как elma_contact_id
+    // и фейковую компанию
+    elmaContactId = userInfo.__id;
+    elmaCompanyId = "00000000-0000-0000-0000-000000000000";
+  }
+
+  if (!elmaContactId || !elmaCompanyId) {
+    console.error(
+      "Cannot determine ELMA ids for authenticated user, email:",
+      email,
+    );
+    return null;
+  }
+
   const { data: newProfile, error: insertError } = await supabase
     .from("profiles")
     .insert({
       id: user.id,
       email,
-      elma_contact_id: contact.__id,
+      elma_contact_id: elmaContactId,
       elma_company_id: elmaCompanyId,
       full_name: fullName,
       is_executor: Boolean(userInfo),
