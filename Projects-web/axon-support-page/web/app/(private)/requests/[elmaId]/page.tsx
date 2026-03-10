@@ -116,6 +116,14 @@ export default function RequestDetailsPage({
         return;
       }
 
+      console.log("RequestDetailsPage fetch", {
+        elmaIdFromParams: elmaId,
+        effectiveElmaId,
+        pathname:
+          typeof window !== "undefined" ? window.location.pathname : null,
+        idBeforeFetch: id,
+      });
+
       setLoading(true);
       setError(null);
       try {
