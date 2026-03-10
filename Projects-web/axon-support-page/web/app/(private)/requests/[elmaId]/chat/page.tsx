@@ -15,6 +15,7 @@ type GetResponse =
   | {
       messages: Message[];
       canPost: boolean;
+      isExecutor?: boolean;
       error?: undefined;
     }
   | {
@@ -55,6 +56,7 @@ export default function ChatPage({
   const [input, setInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [canPost, setCanPost] = useState(true);
+  const [isExecutor, setIsExecutor] = useState(false);
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
@@ -81,6 +83,7 @@ export default function ChatPage({
         if (!cancelled) {
           setMessages(data.messages ?? []);
           setCanPost(data.canPost ?? true);
+          setIsExecutor(Boolean(data.isExecutor));
         }
       } catch {
         if (!cancelled) {
@@ -193,15 +196,15 @@ export default function ChatPage({
         {!loading &&
           !error &&
           messages.map((message) => {
-            const isClient =
-              message.author_type === "client" &&
-              message.direction === "outgoing";
+            const isCurrentUser =
+              (message.author_type === "client" && !isExecutor) ||
+              (message.author_type === "agent" && isExecutor);
 
-            const alignment = isClient
+            const alignment = isCurrentUser
               ? "items-end text-right"
               : "items-start text-left";
 
-            const bubbleClasses = isClient
+            const bubbleClasses = isCurrentUser
               ? "bg-sky-500 text-white"
               : "bg-slate-800 text-slate-50";
 
@@ -216,7 +219,7 @@ export default function ChatPage({
                   {message.body}
                 </div>
                 <span className="text-[10px] text-slate-400">
-                  {isClient ? "Вы" : "Поддержка"} ·{" "}
+                  {isCurrentUser ? "Вы" : "Поддержка"} ·{" "}
                   {formatTime(message.created_at)}
                 </span>
               </div>

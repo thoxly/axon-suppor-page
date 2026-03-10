@@ -9,6 +9,7 @@ type Params = {
 
 type TicketRow = {
   status_code: number | null;
+  is_executor_for_ticket: boolean;
 };
 
 type MessageRow = {
@@ -25,12 +26,26 @@ async function loadTicketForUser(
 ): Promise<TicketRow | null> {
   const sql = `
     select
-      t.status_code
+      t.status_code,
+      coalesce(
+        case
+          when p.is_executor
+               and p.elma_contact_id = t.elma_executor_id then true
+          else false
+        end,
+        false
+      ) as is_executor_for_ticket
     from public.tickets t
     join public.profiles p
       on p.id = $1
      and p.elma_company_id = t.elma_company_id
-     and p.elma_contact_id = t.elma_initiator_id
+     and (
+       p.elma_contact_id = t.elma_initiator_id
+       or (
+         p.is_executor
+         and p.elma_contact_id = t.elma_executor_id
+       )
+     )
     where t.elma_id = $2
     limit 1;
   `;
@@ -93,6 +108,7 @@ export async function GET(
     return NextResponse.json({
       messages: rows,
       canPost: !isClosed,
+      isExecutor: ticket.is_executor_for_ticket,
     });
   } catch (error) {
     console.error("Messages list error:", error);
@@ -157,6 +173,8 @@ export async function POST(
       );
     }
 
+    const authorType = profile.is_executor ? "agent" : "client";
+
     const insertSql = `
       insert into public.ticket_messages (
         ticket_elma_id,
@@ -165,13 +183,14 @@ export async function POST(
         direction,
         body
       )
-      values ($1, $2, 'client', 'outgoing', $3)
+      values ($1, $2, $3, 'outgoing', $4)
       returning id, body, author_type, direction, created_at;
     `;
 
     const { rows } = await query<MessageRow>(insertSql, [
       elmaId,
       profile.id,
+      authorType,
       text,
     ]);
 

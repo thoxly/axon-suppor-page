@@ -25,6 +25,7 @@ create table if not exists public.profiles (
   elma_contact_id uuid not null,
   elma_company_id uuid not null,
   full_name text,
+  is_executor boolean not null default false,
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
 );
@@ -57,6 +58,7 @@ create table if not exists public.tickets (
   elma_index integer,
   elma_company_id uuid not null,
   elma_initiator_id uuid not null,
+  elma_executor_id uuid,
   headers text,
   problem_description text,
   urgency_code text,
@@ -94,7 +96,13 @@ begin
           from public.profiles p
           where p.id = auth.uid()
             and p.elma_company_id = tickets.elma_company_id
-            and p.elma_contact_id = tickets.elma_initiator_id
+            and (
+              p.elma_contact_id = tickets.elma_initiator_id
+              or (
+                p.is_executor
+                and p.elma_contact_id = tickets.elma_executor_id
+              )
+            )
         )
       );
   end if;
@@ -115,7 +123,13 @@ begin
           from public.profiles p
           where p.id = auth.uid()
             and p.elma_company_id = elma_company_id
-            and p.elma_contact_id = elma_initiator_id
+            and (
+              p.elma_contact_id = elma_initiator_id
+              or (
+                p.is_executor
+                and p.elma_contact_id = elma_executor_id
+              )
+            )
         )
       );
   end if;
@@ -136,7 +150,13 @@ begin
           from public.profiles p
           where p.id = auth.uid()
             and p.elma_company_id = elma_company_id
-            and p.elma_contact_id = elma_initiator_id
+            and (
+              p.elma_contact_id = elma_initiator_id
+              or (
+                p.is_executor
+                and p.elma_contact_id = elma_executor_id
+              )
+            )
         )
       )
       with check (
@@ -145,7 +165,13 @@ begin
           from public.profiles p
           where p.id = auth.uid()
             and p.elma_company_id = elma_company_id
-            and p.elma_contact_id = elma_initiator_id
+            and (
+              p.elma_contact_id = elma_initiator_id
+              or (
+                p.is_executor
+                and p.elma_contact_id = elma_executor_id
+              )
+            )
         )
       );
   end if;
@@ -191,7 +217,13 @@ begin
           join public.profiles p
             on p.id = auth.uid()
            and p.elma_company_id = t.elma_company_id
-           and p.elma_contact_id = t.elma_initiator_id
+           and (
+             p.elma_contact_id = t.elma_initiator_id
+             or (
+               p.is_executor
+               and p.elma_contact_id = t.elma_executor_id
+             )
+           )
           where t.elma_id = ticket_messages.ticket_elma_id
         )
       );
@@ -214,7 +246,13 @@ begin
           join public.profiles p
             on p.id = auth.uid()
            and p.elma_company_id = t.elma_company_id
-           and p.elma_contact_id = t.elma_initiator_id
+           and (
+             p.elma_contact_id = t.elma_initiator_id
+             or (
+               p.is_executor
+               and p.elma_contact_id = t.elma_executor_id
+             )
+           )
           where t.elma_id = ticket_elma_id
         )
       );
