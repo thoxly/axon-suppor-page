@@ -20,6 +20,7 @@ export async function GET(
     const elmaId = paramsElmaId ?? pathSegments[pathSegments.length - 1];
 
     console.error("API /api/requests/[elmaId]", {
+      requestUrl: request.url,
       paramsElmaId,
       fromPath: pathSegments[pathSegments.length - 1],
       finalElmaId: elmaId,
