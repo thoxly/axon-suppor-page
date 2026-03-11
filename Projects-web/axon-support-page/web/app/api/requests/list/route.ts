@@ -129,7 +129,11 @@ export async function GET() {
       await query(sql, values);
     }
 
-    // Подсчитываем количество непрочитанных сообщений по каждой заявке для текущего профиля
+    // Подсчитываем количество непрочитанных сообщений по каждой заявке для текущего профиля.
+    // ВАЖНО: считаем "входящими" все сообщения, у которых author_type
+    // противоположен роли текущего профиля:
+    // - если профиль исполнителя (is_executor = true), то считаем сообщения клиента (author_type = 'client');
+    // - если профиль клиента, то считаем сообщения исполнителя (author_type = 'agent').
     let unreadByTicket = new Map<string, number>();
 
     if (elmaRequests.length > 0) {
@@ -144,7 +148,15 @@ export async function GET() {
             t.elma_id,
             coalesce(
               count(*) filter (
-                where m.direction = 'incoming'
+                where
+                  (
+                    -- для исполнителя входящие = сообщения клиента
+                    $2::boolean = true and m.author_type = 'client'
+                  )
+                  or (
+                    -- для клиента входящие = сообщения исполнителя
+                    $2::boolean = false and m.author_type = 'agent'
+                  )
                   and (
                     r.last_read_at is null
                     or m.created_at > r.last_read_at
@@ -157,11 +169,11 @@ export async function GET() {
             on m.ticket_elma_id = t.elma_id
           left join public.ticket_message_reads r
             on r.ticket_elma_id = t.elma_id
-           and r.profile_id = $2
+           and r.profile_id = $3
           where t.elma_id = any($1::uuid[])
           group by t.elma_id;
         `,
-        [elmaIds, profileId],
+        [elmaIds, profile.is_executor, profileId],
       );
 
       unreadByTicket = new Map(
