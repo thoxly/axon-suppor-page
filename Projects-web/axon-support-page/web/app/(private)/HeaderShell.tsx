@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type RequestSummary = {
   id: string;
   index: number | null;
   headers?: string | null;
+  unreadCount: number;
 };
 
 type RequestsApiResponse =
@@ -41,6 +42,16 @@ export function HeaderShell({
 
   const onRequestsPage = pathname === "/requests";
 
+  const displayNameAbbreviation = useMemo(() => {
+    if (!displayName) return "";
+    const parts = displayName.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
+    }
+    const first = parts[0] ?? "";
+    return first.slice(0, 2).toUpperCase();
+  }, [displayName]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -59,7 +70,10 @@ export function HeaderShell({
         }
 
         if (!cancelled && data.items) {
-          setNotifications(data.items.slice(0, 10));
+          const withUnread = (data.items as RequestSummary[]).filter(
+            (item) => (item.unreadCount ?? 0) > 0,
+          );
+          setNotifications(withUnread.slice(0, 10));
         }
       } catch {
         if (!cancelled) {
@@ -81,7 +95,10 @@ export function HeaderShell({
     };
   }, []);
 
-  const notificationsCount = notifications.length;
+  const notificationsCount = notifications.reduce(
+    (total, item) => total + (item.unreadCount ?? 0),
+    0,
+  );
 
   return (
     <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
@@ -163,8 +180,13 @@ export function HeaderShell({
                       <div className="mb-0.5 text-[10px] text-slate-500">
                         Заявка № {item.index ?? "—"}
                       </div>
-                      <div className="line-clamp-2 text-xs font-medium">
-                        {item.headers ?? "(без темы)"}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="line-clamp-2 text-xs font-medium">
+                          {item.headers ?? "(без темы)"}
+                        </div>
+                        <span className="inline-flex min-w-[1.5rem] items-center justify-center rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-semibold text-rose-600">
+                          +{item.unreadCount}
+                        </span>
                       </div>
                     </Link>
                   ))}
@@ -173,30 +195,27 @@ export function HeaderShell({
           )}
         </div>
 
-        <nav className="flex items-center gap-3 text-xs font-medium">
-          <Link
-            href="/requests"
-            className={`rounded-full px-3 py-1 transition-colors ${
-              onRequestsPage
-                ? "bg-sky-50 text-sky-700 ring-1 ring-sky-200"
-                : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
-            }`}
-          >
-            {isExecutor ? "Заявки" : "Мои обращения"}
-          </Link>
-        </nav>
+        {isExecutor && (
+          <nav className="flex items-center gap-3 text-xs font-medium">
+            <Link
+              href="/requests"
+              className={`rounded-full px-3 py-1 transition-colors ${
+                onRequestsPage
+                  ? "bg-sky-50 text-sky-700 ring-1 ring-sky-200"
+                  : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+              }`}
+            >
+              Заявки
+            </Link>
+          </nav>
+        )}
 
         <div className="relative">
           <details className="group">
-            <summary className="flex cursor-pointer list-none items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700 shadow-sm transition hover:border-sky-300 hover:text-sky-800">
-              <div className="text-right">
-                <div className="max-w-[150px] truncate font-medium">
-                  {displayName}
-                </div>
-                <div className="text-[10px] text-slate-500">
-                  Компания: {elmaCompanyId}
-                </div>
-              </div>
+            <summary className="flex cursor-pointer list-none items-center gap-2 rounded-full border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 shadow-sm transition hover:border-sky-300 hover:text-sky-800">
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-[11px] font-semibold text-white">
+                {displayNameAbbreviation}
+              </span>
             </summary>
             <div className="absolute right-0 z-20 mt-2 w-56 rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-700 shadow-lg">
               <div className="mb-2">

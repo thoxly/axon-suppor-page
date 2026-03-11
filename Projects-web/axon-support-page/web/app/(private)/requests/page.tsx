@@ -50,11 +50,11 @@ function mapStatus(status?: number | null) {
     case 4:
       return { label: "В работе", tone: "amber" as const };
     case 5:
-      return { label: "Ожидание", tone: "violet" as const };
+      return { label: "Ожидание", tone: "rose" as const };
     case 6:
       return { label: "Решена", tone: "emerald" as const };
     case 7:
-      return { label: "Закрыта", tone: "emerald" as const };
+      return { label: "Закрыта", tone: "slate" as const };
     default:
       return { label: String(status), tone: "slate" as const };
   }
@@ -210,7 +210,9 @@ export default function RequestsPage() {
                         ? "bg-amber-50 text-amber-700 ring-amber-200"
                         : status.tone === "sky"
                           ? "bg-sky-50 text-sky-700 ring-sky-200"
-                          : "bg-slate-100 text-slate-700 ring-slate-200";
+                          : status.tone === "rose"
+                            ? "bg-rose-50 text-rose-700 ring-rose-200"
+                            : "bg-slate-100 text-slate-700 ring-slate-200";
 
                   return (
                     <tr
@@ -295,7 +297,9 @@ export default function RequestsPage() {
                       ? "bg-amber-50 text-amber-700 ring-amber-200"
                       : status.tone === "sky"
                         ? "bg-sky-50 text-sky-700 ring-sky-200"
-                        : "bg-slate-100 text-slate-700 ring-slate-200";
+                        : status.tone === "rose"
+                          ? "bg-rose-50 text-rose-700 ring-rose-200"
+                          : "bg-slate-100 text-slate-700 ring-slate-200";
 
               return (
                 <Link

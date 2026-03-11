@@ -122,6 +122,27 @@ export async function GET(
 
     const isClosed = ticket.status_code === 6 || ticket.status_code === 7;
 
+    // Обновляем метку прочтения: считаем, что при загрузке чата пользователь просмотрел все сообщения
+    const lastMessageCreatedAt =
+      rows.length > 0 ? rows[rows.length - 1]?.created_at : null;
+
+    if (lastMessageCreatedAt) {
+      await query(
+        `
+          insert into public.ticket_message_reads (
+            ticket_elma_id,
+            profile_id,
+            last_read_at
+          )
+          values ($1, $2, $3)
+          on conflict (ticket_elma_id, profile_id) do update set
+            last_read_at = excluded.last_read_at,
+            updated_at = timezone('utc', now());
+        `,
+        [elmaId, profile.id, lastMessageCreatedAt],
+      );
+    }
+
     return NextResponse.json({
       messages: rows,
       canPost: !isClosed,

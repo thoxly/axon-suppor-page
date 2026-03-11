@@ -260,3 +260,38 @@ begin
 end
 $$;
 
+-- Per-user read status for ticket messages
+create table if not exists public.ticket_message_reads (
+  id uuid primary key default gen_random_uuid(),
+  ticket_elma_id uuid not null,
+  profile_id uuid not null references public.profiles (id) on delete cascade,
+  last_read_at timestamptz not null default timezone('utc', now()),
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now()),
+  unique (ticket_elma_id, profile_id)
+);
+
+create index if not exists ticket_message_reads_ticket_profile_idx
+  on public.ticket_message_reads (ticket_elma_id, profile_id);
+
+alter table public.ticket_message_reads enable row level security;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = 'ticket_message_reads'
+      and policyname = 'Users can manage their own read markers'
+  ) then
+    create policy "Users can manage their own read markers"
+      on public.ticket_message_reads
+      for all
+      using (auth.uid() = profile_id)
+      with check (auth.uid() = profile_id);
+  end if;
+end
+$$;
+
+

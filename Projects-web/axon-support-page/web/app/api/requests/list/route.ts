@@ -1,3 +1,127 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import { getOrCreateCurrentProfile } from "@/lib/profile";
+import { query } from "@/lib/db";
+
+type TicketListRow = {
+  elma_id: string;
+  elma_index: number | null;
+  headers: string | null;
+  status_code: number | null;
+  creation_date: string | null;
+  deadline_date: string | null;
+  unread_count: number;
+};
+
+type ApiResponse =
+  | {
+      items: {
+        id: string;
+        index: number | null;
+        headers?: string | null;
+        status?: number | null;
+        creationDate?: string | null;
+        deadlineDate?: string | null;
+        unreadCount: number;
+      }[];
+      isExecutor: boolean;
+      error?: undefined;
+    }
+  | {
+      error: string;
+      items?: undefined;
+      isExecutor?: boolean;
+    };
+
+export async function GET(
+  _request: NextRequest,
+): Promise<NextResponse<ApiResponse>> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 },
+      ) as NextResponse<ApiResponse>;
+    }
+
+    const profile = await getOrCreateCurrentProfile();
+
+    if (!profile) {
+      return NextResponse.json(
+        { error: "Профиль пользователя не найден" },
+        { status: 403 },
+      ) as NextResponse<ApiResponse>;
+    }
+
+    const sql = `
+      select
+        t.elma_id,
+        t.elma_index,
+        t.headers,
+        t.status_code,
+        t.creation_date,
+        t.deadline_date,
+        coalesce(
+          (
+            select count(1)
+            from public.ticket_messages m
+            left join public.ticket_message_reads r
+              on r.ticket_elma_id = m.ticket_elma_id
+             and r.profile_id = $1
+            where m.ticket_elma_id = t.elma_id
+              and m.direction = 'incoming'
+              and (
+                r.last_read_at is null
+                or m.created_at > r.last_read_at
+              )
+          ),
+          0
+        ) as unread_count
+      from public.tickets t
+      join public.profiles p
+        on p.id = $1
+       and p.elma_company_id = t.elma_company_id
+       and (
+         p.elma_contact_id = t.elma_initiator_id
+         or (
+           p.is_executor
+           and p.elma_contact_id = t.elma_executor_id
+         )
+       )
+      order by t.creation_date desc nulls last, t.elma_index desc nulls last;
+    `;
+
+    const { rows } = await query<TicketListRow>(sql, [profile.id as string]);
+
+    const items =
+      rows?.map((row) => ({
+        id: row.elma_id,
+        index: row.elma_index,
+        headers: row.headers,
+        status: row.status_code,
+        creationDate: row.creation_date,
+        deadlineDate: row.deadline_date,
+        unreadCount: row.unread_count,
+      })) ?? [];
+
+    return NextResponse.json({
+      items,
+      isExecutor: Boolean(profile.is_executor),
+    }) as NextResponse<ApiResponse>;
+  } catch (error) {
+    console.error("Requests list error:", error);
+    return NextResponse.json(
+      { error: "Не удалось загрузить список заявок" },
+      { status: 500 },
+    ) as NextResponse<ApiResponse>;
+  }
+}
+
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getOrCreateCurrentProfile } from "@/lib/profile";

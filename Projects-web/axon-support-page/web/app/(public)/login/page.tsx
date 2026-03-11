@@ -33,7 +33,7 @@ export default function LoginPage() {
 
       if (response.ok) {
         setSuccess(
-          "Мы сгенерировали одноразовый код для входа. Посмотрите его в консоли сервера и введите ниже.",
+          "Мы сгенерировали одноразовый код для входа и отправили его на корпоративную почту. Введите код ниже.",
         );
         setStep(2);
       } else {
@@ -68,6 +68,11 @@ export default function LoginPage() {
 
     if (!trimmedEmail || !trimmedCode) {
       setError("Введите email и код");
+      return;
+    }
+
+    if (trimmedCode.length !== 6) {
+      setError("Код должен состоять из 6 цифр.");
       return;
     }
 
@@ -110,8 +115,7 @@ export default function LoginPage() {
           требуется&nbsp;— доступ только для существующих контактов.
         </p>
         <p className="mb-6 text-center text-xs text-slate-500">
-          В режиме разработки вместо письма вы получаете одноразовый код в
-          консоли сервера.
+          Мы отправим одноразовый код на ваш рабочий email.
         </p>
 
         {step === 1 && (
@@ -170,8 +174,9 @@ export default function LoginPage() {
                 id="code"
                 type="text"
                 inputMode="numeric"
+                maxLength={6}
                 className="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none ring-0 placeholder:text-slate-500 focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
-                placeholder="Введите код из консоли"
+                placeholder="Введите 6-значный код из письма"
                 value={code}
                 onChange={(event) => setCode(event.target.value)}
                 disabled={submitting}
