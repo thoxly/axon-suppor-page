@@ -27,6 +27,7 @@ export async function GET() {
 
     const companyId: string = profile.elma_company_id;
     const contactId: string = profile.elma_contact_id;
+    const profileId: string = profile.id as string;
 
     let elmaRequests: ElmaRequestListItem[] = [];
 
@@ -128,6 +129,51 @@ export async function GET() {
       await query(sql, values);
     }
 
+    // Подсчитываем количество непрочитанных сообщений по каждой заявке для текущего профиля
+    let unreadByTicket = new Map<string, number>();
+
+    if (elmaRequests.length > 0) {
+      const elmaIds = elmaRequests.map((item) => item.__id);
+
+      const { rows } = await query<{
+        elma_id: string;
+        unread_count: string | number | null;
+      }>(
+        `
+          select
+            t.elma_id,
+            coalesce(
+              count(*) filter (
+                where m.direction = 'incoming'
+                  and (
+                    r.last_read_at is null
+                    or m.created_at > r.last_read_at
+                  )
+              ),
+              0
+            ) as unread_count
+          from public.tickets t
+          left join public.ticket_messages m
+            on m.ticket_elma_id = t.elma_id
+          left join public.ticket_message_reads r
+            on r.ticket_elma_id = t.elma_id
+           and r.profile_id = $2
+          where t.elma_id = any($1::uuid[])
+          group by t.elma_id;
+        `,
+        [elmaIds, profileId],
+      );
+
+      unreadByTicket = new Map(
+        rows.map((row) => [
+          row.elma_id,
+          typeof row.unread_count === "string"
+            ? Number.parseInt(row.unread_count, 10) || 0
+            : Number(row.unread_count ?? 0),
+        ]),
+      );
+    }
+
     const normalized = elmaRequests.map((item) => ({
       id: item.__id,
       index: item.__index,
@@ -135,9 +181,13 @@ export async function GET() {
       status: item.__status?.status,
       creationDate: item.creation_date,
       deadlineDate: item.deadline_date,
+      unreadCount: unreadByTicket.get(item.__id) ?? 0,
     }));
 
-    return NextResponse.json({ items: normalized });
+    return NextResponse.json({
+      items: normalized,
+      isExecutor: profile.is_executor,
+    });
   } catch (error) {
     console.error("Requests list error:", error);
     return NextResponse.json(

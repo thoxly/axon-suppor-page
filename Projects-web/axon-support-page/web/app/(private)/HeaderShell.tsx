@@ -196,7 +196,7 @@ export function HeaderShell({
         </div>
 
         {isExecutor && (
-          <nav className="flex items-center gap-3 text-xs font-medium">
+          <nav className="hidden items-center gap-3 text-xs font-medium md:flex">
             <Link
               href="/requests"
               className={`rounded-full px-3 py-1 transition-colors ${
