@@ -4,6 +4,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 const ELMA_BASE_URL =
   process.env.ELMA_API_BASE_URL ?? "https://elma-dev.copycon.ru/pub/v1";
 const ELMA_API_KEY = process.env.ELMA_API_KEY;
+const ELMA_OTP_WEBHOOK_URL =
+  process.env.ELMA_OTP_WEBHOOK_URL ??
+  "https://elma-dev.copycon.ru/api/extensions/ddd669fb-a3e8-4f77-97e9-fc40c044a9fe/script/get_email";
 
 type ElmaContact = {
   __id: string;
@@ -191,7 +194,29 @@ export async function POST(request: Request) {
       );
     }
 
-    console.log(`[DEV] OTP для ${email}: ${otp}`);
+    const webhookResponse = await fetch(ELMA_OTP_WEBHOOK_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email,
+        otp,
+      }),
+    });
+
+    if (!webhookResponse.ok) {
+      const text = await webhookResponse.text().catch(() => "");
+      console.error(
+        "ELMA OTP webhook error:",
+        webhookResponse.status,
+        text,
+      );
+      return NextResponse.json(
+        { error: "Не удалось отправить одноразовый код" },
+        { status: 500 },
+      );
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
