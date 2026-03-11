@@ -65,6 +65,8 @@ export default function RequestsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isExecutor, setIsExecutor] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
   useEffect(() => {
     let cancelled = false;
@@ -113,10 +115,26 @@ export default function RequestsPage() {
     };
   }, []);
 
+  const visibleItems = items
+    .filter((item) => {
+      if (showCompleted) return true;
+      if (item.status == null) return true;
+      return item.status !== 6 && item.status !== 7;
+    })
+    .slice()
+    .sort((a, b) => {
+      const aTime = a.creationDate ? new Date(a.creationDate).getTime() : 0;
+      const bTime = b.creationDate ? new Date(b.creationDate).getTime() : 0;
+
+      if (Number.isNaN(aTime) || Number.isNaN(bTime)) return 0;
+
+      return sortDirection === "asc" ? aTime - bTime : bTime - aTime;
+    });
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-1">
           <h1 className="text-lg font-semibold text-slate-900">
             {isExecutor ? "Заявки" : "Мои обращения"}
           </h1>
@@ -126,14 +144,25 @@ export default function RequestsPage() {
               : "Список заявок из ELMA365, где вы являетесь инициатором."}
           </p>
         </div>
-        {!isExecutor && (
-          <Link
-            href="/requests/new"
-            className="inline-flex items-center rounded-lg bg-sky-500 px-3 py-2 text-xs font-medium text-white shadow-sm transition hover:bg-sky-400"
-          >
-            Создать обращение
-          </Link>
-        )}
+        <div className="flex flex-col items-start gap-2 sm:items-end">
+          <label className="inline-flex items-center gap-2 text-xs text-slate-600">
+            <input
+              type="checkbox"
+              className="h-3 w-3 rounded border-slate-300 text-sky-500 focus:ring-sky-500"
+              checked={showCompleted}
+              onChange={(event) => setShowCompleted(event.target.checked)}
+            />
+            <span>Отображать завершённые (Решена, Закрыта)</span>
+          </label>
+          {!isExecutor && (
+            <Link
+              href="/requests/new"
+              className="inline-flex items-center rounded-lg bg-sky-500 px-3 py-2 text-xs font-medium text-white shadow-sm transition hover:bg-sky-400"
+            >
+              Создать обращение
+            </Link>
+          )}
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
@@ -149,8 +178,20 @@ export default function RequestsPage() {
                 <th className="px-4 py-2">№</th>
                 <th className="px-4 py-2">Тема</th>
                 <th className="px-4 py-2">Статус</th>
-                <th className="px-4 py-2">Создана</th>
-                <th className="px-4 py-2">Срок</th>
+                <th className="px-4 py-2">
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-slate-500 hover:text-slate-700"
+                    onClick={() =>
+                      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"))
+                    }
+                  >
+                    <span>Создана</span>
+                    <span className="text-[10px]">
+                      {sortDirection === "asc" ? "↑" : "↓"}
+                    </span>
+                  </button>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -170,16 +211,13 @@ export default function RequestsPage() {
                     <td className="whitespace-nowrap px-4 py-3">
                       <div className="h-3 w-24 rounded bg-slate-200" />
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3">
-                      <div className="h-3 w-24 rounded bg-slate-200" />
-                    </td>
                   </tr>
                 ))}
 
               {!loading && error && (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={4}
                     className="px-4 py-6 text-center text-xs text-rose-500"
                   >
                     {error}
@@ -190,7 +228,7 @@ export default function RequestsPage() {
               {!loading && !error && items.length === 0 && (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={4}
                     className="px-4 py-6 text-center text-xs text-slate-500"
                   >
                     У вас пока нет обращений.
@@ -200,7 +238,7 @@ export default function RequestsPage() {
 
               {!loading &&
                 !error &&
-                items.map((item) => {
+                visibleItems.map((item) => {
                   const status = mapStatus(item.status);
 
                   const statusClasses =
@@ -240,9 +278,6 @@ export default function RequestsPage() {
                       <td className="whitespace-nowrap px-4 py-2 text-slate-700">
                         {formatDate(item.creationDate)}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-2 text-slate-700">
-                        {formatDate(item.deadlineDate)}
-                      </td>
                     </tr>
                   );
                 })}
@@ -268,7 +303,6 @@ export default function RequestsPage() {
                 </div>
                 <div className="flex items-center justify-between gap-2 text-[10px]">
                   <div className="h-3 w-24 rounded bg-slate-200" />
-                  <div className="h-3 w-24 rounded bg-slate-200" />
                 </div>
               </div>
             ))}
@@ -287,7 +321,7 @@ export default function RequestsPage() {
 
           {!loading &&
             !error &&
-            items.map((item) => {
+            visibleItems.map((item) => {
               const status = mapStatus(item.status);
 
                 const statusClasses =
@@ -322,7 +356,6 @@ export default function RequestsPage() {
                   </p>
                   <div className="mt-2 flex items-center justify-between gap-2 text-[10px] text-slate-500">
                     <span>Создана: {formatDate(item.creationDate)}</span>
-                    <span>Срок: {formatDate(item.deadlineDate)}</span>
                   </div>
                 </Link>
               );
