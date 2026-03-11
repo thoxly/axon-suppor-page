@@ -71,11 +71,6 @@ export default function LoginPage() {
       return;
     }
 
-    if (trimmedCode.length !== 6) {
-      setError("Код должен состоять из 6 цифр.");
-      return;
-    }
-
     setSubmitting(true);
     try {
       const response = await fetch("/api/auth/verify-otp", {
@@ -174,9 +169,8 @@ export default function LoginPage() {
                 id="code"
                 type="text"
                 inputMode="numeric"
-                maxLength={6}
                 className="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none ring-0 placeholder:text-slate-500 focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
-                placeholder="Введите 6-значный код из письма"
+                placeholder="Введите код из письма"
                 value={code}
                 onChange={(event) => setCode(event.target.value)}
                 disabled={submitting}
