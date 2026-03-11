@@ -78,6 +78,8 @@ export default function RequestDetailsPage({
   const [isExecutorForTicket, setIsExecutorForTicket] = useState(false);
   const [closing, setClosing] = useState(false);
   const [closeError, setCloseError] = useState<string | null>(null);
+  const [reopening, setReopening] = useState(false);
+  const [reopenError, setReopenError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -171,6 +173,14 @@ export default function RequestDetailsPage({
   const handleCloseRequest = async () => {
     if (!effectiveElmaId || closing) return;
 
+    const confirmed = window.confirm(
+      isExecutorForTicket
+        ? "Вы уверены, что хотите завершить заявку?"
+        : "Вы уверены, что хотите закрыть заявку?",
+    );
+
+    if (!confirmed) return;
+
     setClosing(true);
     setCloseError(null);
 
@@ -215,11 +225,70 @@ export default function RequestDetailsPage({
     }
   };
 
+  const handleReopenRequest = async () => {
+    if (!effectiveElmaId || reopening) return;
+
+    const confirmed = window.confirm(
+      "Вернуть заявку в статус «В работе»?",
+    );
+
+    if (!confirmed) return;
+
+    setReopening(true);
+    setReopenError(null);
+
+    try {
+      const response = await fetch(
+        `/api/requests/${effectiveElmaId}/reopen`,
+        {
+          method: "POST",
+        },
+      );
+
+      const data = (await response.json().catch(() => ({}))) as {
+        ok?: boolean;
+        error?: string;
+        status?: number;
+      };
+
+      if (!response.ok || data.ok !== true) {
+        setReopenError(
+          data.error ??
+            "Не удалось вернуть заявку в работу. Попробуйте ещё раз.",
+        );
+        return;
+      }
+
+      setItem((previous) =>
+        previous
+          ? {
+              ...previous,
+              __status: {
+                ...(previous.__status ?? { order: 0, status: 4 }),
+                status: 4,
+              },
+            }
+          : previous,
+      );
+    } catch {
+      setReopenError(
+        "Ошибка сети при изменении статуса заявки. Проверьте подключение и попробуйте ещё раз.",
+      );
+    } finally {
+      setReopening(false);
+    }
+  };
+
   const canOpenChat =
     item && item.__status?.status !== 6 && item.__status?.status !== 7;
 
   const canCloseRequest =
     item && item.__status?.status !== 6 && item.__status?.status !== 7;
+
+  const canReopenRequest =
+    !!item &&
+    isExecutorForTicket &&
+    item.__status?.status === 6;
 
   const closeButtonLabel = isExecutorForTicket
     ? "Завершить заявку"
@@ -266,9 +335,25 @@ export default function RequestDetailsPage({
                   type="button"
                   onClick={handleCloseRequest}
                   disabled={closing}
+                  title={
+                    isExecutorForTicket
+                      ? "Завершить заявку и перевести её в статус «Решена»"
+                      : "Закрыть заявку и перевести её в статус «Решена»"
+                  }
                   className="inline-flex items-center rounded-lg bg-emerald-500 px-3 py-1.5 text-[11px] font-medium text-white shadow-sm transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-emerald-200 disabled:text-emerald-900/60"
                 >
                   {closing ? "Завершение..." : closeButtonLabel}
+                </button>
+              )}
+              {canReopenRequest && (
+                <button
+                  type="button"
+                  onClick={handleReopenRequest}
+                  disabled={reopening}
+                  title="Вернуть заявку из статуса «Решена» в статус «В работе»"
+                  className="inline-flex items-center rounded-lg bg-amber-500 px-3 py-1.5 text-[11px] font-medium text-white shadow-sm transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:bg-amber-200 disabled:text-amber-900/60"
+                >
+                  {reopening ? "Возврат..." : "Вернуть в работу"}
                 </button>
               )}
               <Link
@@ -289,6 +374,11 @@ export default function RequestDetailsPage({
           {closeError && (
             <p className="text-xs text-rose-500" role="alert">
               {closeError}
+            </p>
+          )}
+          {reopenError && (
+            <p className="text-xs text-rose-500" role="alert">
+              {reopenError}
             </p>
           )}
 

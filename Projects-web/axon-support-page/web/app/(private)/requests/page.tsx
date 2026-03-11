@@ -256,7 +256,19 @@ export default function RequestsPage() {
                     item.status !== 6 &&
                     item.status !== 7;
 
+                  const canReopen =
+                    isExecutor &&
+                    item.status === 6;
+
                   const handleRowCloseRequest = async () => {
+                    const confirmed = window.confirm(
+                      isExecutor
+                        ? "Вы уверены, что хотите завершить заявку?"
+                        : "Вы уверены, что хотите закрыть заявку?",
+                    );
+
+                    if (!confirmed) return;
+
                     try {
                       const response = await fetch(
                         `/api/requests/${item.id}/solve`,
@@ -289,6 +301,43 @@ export default function RequestsPage() {
                     }
                   };
 
+                  const handleRowReopenRequest = async () => {
+                    const confirmed = window.confirm(
+                      "Вернуть заявку в статус «В работе»?",
+                    );
+
+                    if (!confirmed) return;
+
+                    try {
+                      const response = await fetch(
+                        `/api/requests/${item.id}/reopen`,
+                        { method: "POST" },
+                      );
+                      const data = (await response.json().catch(() => ({}))) as {
+                        ok?: boolean;
+                        error?: string;
+                        status?: number;
+                      };
+
+                      if (!response.ok || data.ok !== true) {
+                        return;
+                      }
+
+                      setItems((previous) =>
+                        previous.map((existing) =>
+                          existing.id === item.id
+                            ? {
+                                ...existing,
+                                status: 4,
+                              }
+                            : existing,
+                        ),
+                      );
+                    } catch {
+                      // Ошибку сети здесь также опускаем.
+                    }
+                  };
+
                   return (
                     <tr
                       key={item.id}
@@ -315,15 +364,29 @@ export default function RequestsPage() {
                       <td className="whitespace-nowrap px-4 py-2 text-slate-700">
                         {formatDate(item.creationDate)}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-2 text-right">
+                      <td className="whitespace-nowrap px-4 py-2 text-right space-x-1">
                         {canClose && (
                           <button
                             type="button"
                             onClick={handleRowCloseRequest}
-                            title={isExecutor ? "Завершить заявку" : "Закрыть заявку"}
+                            title={
+                              isExecutor
+                                ? "Завершить заявку и перевести её в статус «Решена»"
+                                : "Закрыть заявку и перевести её в статус «Решена»"
+                            }
                             className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-emerald-500 text-[12px] text-emerald-600 hover:bg-emerald-50"
                           >
                             ✓
+                          </button>
+                        )}
+                        {canReopen && (
+                          <button
+                            type="button"
+                            onClick={handleRowReopenRequest}
+                            title="Вернуть заявку из статуса «Решена» в статус «В работе»"
+                            className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-amber-500 text-[12px] text-amber-600 hover:bg-amber-50"
+                          >
+                            ↺
                           </button>
                         )}
                       </td>
@@ -389,7 +452,19 @@ export default function RequestsPage() {
                 item.status !== 6 &&
                 item.status !== 7;
 
+              const canReopen =
+                isExecutor &&
+                item.status === 6;
+
               const handleRowCloseRequest = async () => {
+                const confirmed = window.confirm(
+                  isExecutor
+                    ? "Вы уверены, что хотите завершить заявку?"
+                    : "Вы уверены, что хотите закрыть заявку?",
+                );
+
+                if (!confirmed) return;
+
                 try {
                   const response = await fetch(
                     `/api/requests/${item.id}/solve`,
@@ -411,6 +486,43 @@ export default function RequestsPage() {
                         ? {
                             ...existing,
                             status: 6,
+                          }
+                        : existing,
+                    ),
+                  );
+                } catch {
+                  // Ошибку сети для мобильной строки также опускаем.
+                }
+              };
+
+              const handleRowReopenRequest = async () => {
+                const confirmed = window.confirm(
+                  "Вернуть заявку в статус «В работе»?",
+                );
+
+                if (!confirmed) return;
+
+                try {
+                  const response = await fetch(
+                    `/api/requests/${item.id}/reopen`,
+                    { method: "POST" },
+                  );
+                  const data = (await response.json().catch(() => ({}))) as {
+                    ok?: boolean;
+                    error?: string;
+                    status?: number;
+                  };
+
+                  if (!response.ok || data.ok !== true) {
+                    return;
+                  }
+
+                  setItems((previous) =>
+                    previous.map((existing) =>
+                      existing.id === item.id
+                        ? {
+                            ...existing,
+                            status: 4,
                           }
                         : existing,
                     ),
@@ -449,8 +561,26 @@ export default function RequestsPage() {
                           void handleRowCloseRequest();
                         }}
                         className="inline-flex items-center rounded-full bg-emerald-500 px-2 py-1 text-[10px] font-medium text-white"
+                        title={
+                          isExecutor
+                            ? "Завершить заявку и перевести её в статус «Решена»"
+                            : "Закрыть заявку и перевести её в статус «Решена»"
+                        }
                       >
                         {isExecutor ? "Завершить" : "Закрыть"}
+                      </button>
+                    )}
+                    {canReopen && (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          void handleRowReopenRequest();
+                        }}
+                        className="inline-flex items-center rounded-full bg-amber-500 px-2 py-1 text-[10px] font-medium text-white"
+                        title="Вернуть заявку из статуса «Решена» в статус «В работе»"
+                      >
+                        В работу
                       </button>
                     )}
                   </div>
