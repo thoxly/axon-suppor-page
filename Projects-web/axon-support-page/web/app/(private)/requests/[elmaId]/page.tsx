@@ -19,6 +19,7 @@ type ElmaRequestItem = {
 type ApiResponse =
   | {
       item: ElmaRequestItem;
+      isExecutorForTicket?: boolean;
       error?: undefined;
     }
   | {
@@ -74,6 +75,9 @@ export default function RequestDetailsPage({
   const [item, setItem] = useState<ElmaRequestItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isExecutorForTicket, setIsExecutorForTicket] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const [closeError, setCloseError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -142,6 +146,7 @@ export default function RequestDetailsPage({
 
         if (!cancelled) {
           setItem(data.item);
+          setIsExecutorForTicket(Boolean(data.isExecutorForTicket));
         }
       } catch {
         if (!cancelled) {
@@ -163,8 +168,62 @@ export default function RequestDetailsPage({
     };
   }, [elmaId]);
 
+  const handleCloseRequest = async () => {
+    if (!effectiveElmaId || closing) return;
+
+    setClosing(true);
+    setCloseError(null);
+
+    try {
+      const response = await fetch(
+        `/api/requests/${effectiveElmaId}/solve`,
+        {
+          method: "POST",
+        },
+      );
+
+      const data = (await response.json().catch(() => ({}))) as {
+        ok?: boolean;
+        error?: string;
+        status?: number;
+      };
+
+      if (!response.ok || data.ok !== true) {
+        setCloseError(
+          data.error ?? "Не удалось завершить заявку. Попробуйте ещё раз.",
+        );
+        return;
+      }
+
+      setItem((previous) =>
+        previous
+          ? {
+              ...previous,
+              __status: {
+                ...(previous.__status ?? { order: 0, status: 6 }),
+                status: 6,
+              },
+            }
+          : previous,
+      );
+    } catch {
+      setCloseError(
+        "Ошибка сети при завершении заявки. Проверьте подключение и попробуйте ещё раз.",
+      );
+    } finally {
+      setClosing(false);
+    }
+  };
+
   const canOpenChat =
     item && item.__status?.status !== 6 && item.__status?.status !== 7;
+
+  const canCloseRequest =
+    item && item.__status?.status !== 6 && item.__status?.status !== 7;
+
+  const closeButtonLabel = isExecutorForTicket
+    ? "Завершить заявку"
+    : "Закрыть заявку";
 
   return (
     <div className="space-y-4">
@@ -202,6 +261,16 @@ export default function RequestDetailsPage({
               <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-800">
                 {mapStatus(item.__status?.status)}
               </span>
+              {canCloseRequest && (
+                <button
+                  type="button"
+                  onClick={handleCloseRequest}
+                  disabled={closing}
+                  className="inline-flex items-center rounded-lg bg-emerald-500 px-3 py-1.5 text-[11px] font-medium text-white shadow-sm transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-emerald-200 disabled:text-emerald-900/60"
+                >
+                  {closing ? "Завершение..." : closeButtonLabel}
+                </button>
+              )}
               <Link
                 href={`/requests/${item.__id}/chat`}
                 className="inline-flex items-center rounded-lg bg-sky-500 px-3 py-1.5 text-[11px] font-medium text-white shadow-sm transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
@@ -216,6 +285,12 @@ export default function RequestDetailsPage({
               )}
             </div>
           </header>
+
+          {closeError && (
+            <p className="text-xs text-rose-500" role="alert">
+              {closeError}
+            </p>
+          )}
 
           <section className="space-y-2 rounded-xl border border-slate-200 bg-white p-4">
             <h2 className="text-xs font-semibold text-slate-900">

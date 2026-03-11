@@ -132,7 +132,7 @@ export async function GET(
       ],
     );
 
-    return NextResponse.json({ item });
+    return NextResponse.json({ item, isExecutorForTicket });
   } catch (error) {
     console.error("Request details error:", error);
     return NextResponse.json(

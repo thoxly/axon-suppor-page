@@ -154,14 +154,12 @@ export default function RequestsPage() {
             />
             <span>Отображать завершённые (Решена, Закрыта)</span>
           </label>
-          {!isExecutor && (
-            <Link
-              href="/requests/new"
-              className="inline-flex items-center rounded-lg bg-sky-500 px-3 py-2 text-xs font-medium text-white shadow-sm transition hover:bg-sky-400"
-            >
-              Создать обращение
-            </Link>
-          )}
+          <Link
+            href="/requests/new"
+            className="inline-flex items-center rounded-lg bg-sky-500 px-3 py-2 text-xs font-medium text-white shadow-sm transition hover:bg-sky-400"
+          >
+            Создать обращение
+          </Link>
         </div>
       </div>
 
@@ -192,6 +190,7 @@ export default function RequestsPage() {
                     </span>
                   </button>
                 </th>
+                <th className="px-4 py-2 text-right">Действия</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -252,6 +251,44 @@ export default function RequestsPage() {
                             ? "bg-rose-50 text-rose-700 ring-rose-200"
                             : "bg-slate-100 text-slate-700 ring-slate-200";
 
+                  const canClose =
+                    item.status != null &&
+                    item.status !== 6 &&
+                    item.status !== 7;
+
+                  const handleRowCloseRequest = async () => {
+                    try {
+                      const response = await fetch(
+                        `/api/requests/${item.id}/solve`,
+                        { method: "POST" },
+                      );
+                      const data = (await response.json().catch(() => ({}))) as {
+                        ok?: boolean;
+                        error?: string;
+                        status?: number;
+                      };
+
+                      if (!response.ok || data.ok !== true) {
+                        // Для простоты пока не показываем отдельную ошибку на строку,
+                        // пользователь увидит, что статус не поменялся.
+                        return;
+                      }
+
+                      setItems((previous) =>
+                        previous.map((existing) =>
+                          existing.id === item.id
+                            ? {
+                                ...existing,
+                                status: 6,
+                              }
+                            : existing,
+                        ),
+                      );
+                    } catch {
+                      // Игнорируем сетевую ошибку здесь, UI остаётся без изменений.
+                    }
+                  };
+
                   return (
                     <tr
                       key={item.id}
@@ -277,6 +314,18 @@ export default function RequestsPage() {
                       </td>
                       <td className="whitespace-nowrap px-4 py-2 text-slate-700">
                         {formatDate(item.creationDate)}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-2 text-right">
+                        {canClose && (
+                          <button
+                            type="button"
+                            onClick={handleRowCloseRequest}
+                            title={isExecutor ? "Завершить заявку" : "Закрыть заявку"}
+                            className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-emerald-500 text-[12px] text-emerald-600 hover:bg-emerald-50"
+                          >
+                            ✓
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );
@@ -324,16 +373,52 @@ export default function RequestsPage() {
             visibleItems.map((item) => {
               const status = mapStatus(item.status);
 
-                const statusClasses =
-                  status.tone === "emerald"
-                    ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
-                    : status.tone === "amber"
-                      ? "bg-amber-50 text-amber-700 ring-amber-200"
-                      : status.tone === "sky"
-                        ? "bg-sky-50 text-sky-700 ring-sky-200"
-                        : status.tone === "rose"
-                          ? "bg-rose-50 text-rose-700 ring-rose-200"
-                          : "bg-slate-100 text-slate-700 ring-slate-200";
+              const statusClasses =
+                status.tone === "emerald"
+                  ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+                  : status.tone === "amber"
+                    ? "bg-amber-50 text-amber-700 ring-amber-200"
+                    : status.tone === "sky"
+                      ? "bg-sky-50 text-sky-700 ring-sky-200"
+                      : status.tone === "rose"
+                        ? "bg-rose-50 text-rose-700 ring-rose-200"
+                        : "bg-slate-100 text-slate-700 ring-slate-200";
+
+              const canClose =
+                item.status != null &&
+                item.status !== 6 &&
+                item.status !== 7;
+
+              const handleRowCloseRequest = async () => {
+                try {
+                  const response = await fetch(
+                    `/api/requests/${item.id}/solve`,
+                    { method: "POST" },
+                  );
+                  const data = (await response.json().catch(() => ({}))) as {
+                    ok?: boolean;
+                    error?: string;
+                    status?: number;
+                  };
+
+                  if (!response.ok || data.ok !== true) {
+                    return;
+                  }
+
+                  setItems((previous) =>
+                    previous.map((existing) =>
+                      existing.id === item.id
+                        ? {
+                            ...existing,
+                            status: 6,
+                          }
+                        : existing,
+                    ),
+                  );
+                } catch {
+                  // Ошибку сети для мобильной строки также опускаем.
+                }
+              };
 
               return (
                 <Link
@@ -356,6 +441,18 @@ export default function RequestsPage() {
                   </p>
                   <div className="mt-2 flex items-center justify-between gap-2 text-[10px] text-slate-500">
                     <span>Создана: {formatDate(item.creationDate)}</span>
+                    {canClose && (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          void handleRowCloseRequest();
+                        }}
+                        className="inline-flex items-center rounded-full bg-emerald-500 px-2 py-1 text-[10px] font-medium text-white"
+                      >
+                        {isExecutor ? "Завершить" : "Закрыть"}
+                      </button>
+                    )}
                   </div>
                 </Link>
               );
