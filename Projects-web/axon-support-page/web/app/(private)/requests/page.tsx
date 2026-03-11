@@ -154,12 +154,14 @@ export default function RequestsPage() {
             />
             <span>Отображать завершённые (Решена, Закрыта)</span>
           </label>
-          <Link
-            href="/requests/new"
-            className="inline-flex items-center rounded-lg bg-sky-500 px-3 py-2 text-xs font-medium text-white shadow-sm transition hover:bg-sky-400"
-          >
-            Создать обращение
-          </Link>
+          {!isExecutor && (
+            <Link
+              href="/requests/new"
+              className="inline-flex items-center rounded-lg bg-sky-500 px-3 py-2 text-xs font-medium text-white shadow-sm transition hover:bg-sky-400"
+            >
+              Создать обращение
+            </Link>
+          )}
         </div>
       </div>
 
