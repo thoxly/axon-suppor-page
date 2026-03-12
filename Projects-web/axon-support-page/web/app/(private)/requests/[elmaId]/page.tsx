@@ -294,6 +294,13 @@ export default function RequestDetailsPage({
     ? "Завершить заявку"
     : "Закрыть заявку";
 
+  const handleMenuActionClick = (
+    event: React.MouseEvent<HTMLElement>,
+  ) => {
+    const details = (event.currentTarget as HTMLElement).closest("details");
+    details?.removeAttribute("open");
+  };
+
   return (
     <div className="space-y-4">
       <Link
@@ -330,44 +337,86 @@ export default function RequestDetailsPage({
               <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-800">
                 {mapStatus(item.__status?.status)}
               </span>
-              {canCloseRequest && (
-                <button
-                  type="button"
-                  onClick={handleCloseRequest}
-                  disabled={closing}
-                  title={
-                    isExecutorForTicket
-                      ? "Завершить заявку и перевести её в статус «Решена»"
-                      : "Закрыть заявку и перевести её в статус «Решена»"
-                  }
-                  className="inline-flex items-center rounded-lg bg-emerald-500 px-3 py-1.5 text-[11px] font-medium text-white shadow-sm transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-emerald-200 disabled:text-emerald-900/60"
+              <details className="relative">
+                <summary
+                  className="flex list-none items-center justify-center rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[12px] font-semibold text-slate-700 shadow-sm transition hover:border-sky-300 hover:text-sky-800 cursor-pointer select-none"
+                  aria-label="Действия по заявке"
+                  title="Действия"
                 >
-                  {closing ? "Завершение..." : closeButtonLabel}
-                </button>
-              )}
-              {canReopenRequest && (
-                <button
-                  type="button"
-                  onClick={handleReopenRequest}
-                  disabled={reopening}
-                  title="Вернуть заявку из статуса «Решена» в статус «В работе»"
-                  className="inline-flex items-center rounded-lg bg-amber-500 px-3 py-1.5 text-[11px] font-medium text-white shadow-sm transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:bg-amber-200 disabled:text-amber-900/60"
-                >
-                  {reopening ? "Возврат..." : "Вернуть в работу"}
-                </button>
-              )}
-              <Link
-                href={`/requests/${item.__id}/chat`}
-                className="inline-flex items-center rounded-lg bg-sky-500 px-3 py-1.5 text-[11px] font-medium text-white shadow-sm transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
-                aria-disabled={!canOpenChat}
-              >
-                Переписка по заявке
-              </Link>
-              {!canOpenChat && (
-                <p className="max-w-[200px] text-right text-[10px] text-slate-500">
-                  По закрытым заявкам переписка только для чтения.
-                </p>
-              )}
+                  ⋯
+                </summary>
+                <div className="absolute right-0 z-20 mt-2 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white text-xs text-slate-700 shadow-lg">
+                  <div className="border-b border-slate-100 px-3 py-2 text-[11px] font-semibold text-slate-600">
+                    Действия
+                  </div>
+                  <div className="p-2 space-y-1">
+                    <Link
+                      href={`/requests/${item.__id}/chat`}
+                      onClick={(event) => {
+                        if (!canOpenChat) {
+                          event.preventDefault();
+                          return;
+                        }
+                        handleMenuActionClick(event);
+                      }}
+                      aria-disabled={!canOpenChat}
+                      title={
+                        canOpenChat
+                          ? "Открыть чат по заявке"
+                          : "По закрытым заявкам переписка только для чтения."
+                      }
+                      className={`flex w-full items-center justify-between rounded-lg px-2 py-2 text-left text-[11px] transition ${
+                        canOpenChat
+                          ? "hover:bg-slate-50"
+                          : "cursor-not-allowed text-slate-400"
+                      }`}
+                    >
+                      <span>Открыть чат</span>
+                      {!canOpenChat && <span className="text-[10px]">—</span>}
+                    </Link>
+
+                    {canCloseRequest && (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          handleMenuActionClick(event);
+                          void handleCloseRequest();
+                        }}
+                        disabled={closing}
+                        className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-left text-[11px] transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-400"
+                        title={
+                          isExecutorForTicket
+                            ? "Завершить заявку и перевести её в статус «Решена»"
+                            : "Закрыть заявку и перевести её в статус «Решена»"
+                        }
+                      >
+                        <span>{closeButtonLabel}</span>
+                        <span className="text-[10px] text-slate-400">
+                          {closing ? "..." : "✓"}
+                        </span>
+                      </button>
+                    )}
+
+                    {canReopenRequest && (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          handleMenuActionClick(event);
+                          void handleReopenRequest();
+                        }}
+                        disabled={reopening}
+                        className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-left text-[11px] transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-400"
+                        title="Вернуть заявку из статуса «Решена» в статус «В работе»"
+                      >
+                        <span>Вернуть в работу</span>
+                        <span className="text-[10px] text-slate-400">
+                          {reopening ? "..." : "↺"}
+                        </span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </details>
             </div>
           </header>
 

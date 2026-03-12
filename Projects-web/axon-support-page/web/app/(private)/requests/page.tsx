@@ -68,6 +68,11 @@ export default function RequestsPage() {
   const [showCompleted, setShowCompleted] = useState(false);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
+  const closeDetailsMenu = (event: React.MouseEvent<HTMLElement>) => {
+    const details = (event.currentTarget as HTMLElement).closest("details");
+    details?.removeAttribute("open");
+  };
+
   useEffect(() => {
     let cancelled = false;
 
@@ -262,6 +267,11 @@ export default function RequestsPage() {
                     isExecutor &&
                     item.status === 6;
 
+                  const canOpenChat =
+                    item.status != null &&
+                    item.status !== 6 &&
+                    item.status !== 7;
+
                   const handleRowCloseRequest = async () => {
                     const confirmed = window.confirm(
                       isExecutor
@@ -367,30 +377,88 @@ export default function RequestsPage() {
                         {formatDate(item.creationDate)}
                       </td>
                       <td className="whitespace-nowrap px-4 py-2 text-right space-x-1">
-                        {canClose && (
-                          <button
-                            type="button"
-                            onClick={handleRowCloseRequest}
-                            title={
-                              isExecutor
-                                ? "Завершить заявку и перевести её в статус «Решена»"
-                                : "Закрыть заявку и перевести её в статус «Решена»"
-                            }
-                            className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-emerald-500 text-[12px] text-emerald-600 hover:bg-emerald-50"
+                        <details className="relative inline-block text-left">
+                          <summary
+                            className="inline-flex h-7 w-7 cursor-pointer list-none items-center justify-center rounded-full border border-slate-200 bg-white text-[12px] font-semibold text-slate-700 shadow-sm transition hover:border-sky-300 hover:text-sky-800"
+                            aria-label="Действия"
+                            title="Действия"
                           >
-                            ✓
-                          </button>
-                        )}
-                        {canReopen && (
-                          <button
-                            type="button"
-                            onClick={handleRowReopenRequest}
-                            title="Вернуть заявку из статуса «Решена» в статус «В работе»"
-                            className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-amber-500 text-[12px] text-amber-600 hover:bg-amber-50"
-                          >
-                            ↺
-                          </button>
-                        )}
+                            ⋯
+                          </summary>
+                          <div className="absolute right-0 z-20 mt-2 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white text-xs text-slate-700 shadow-lg">
+                            <div className="border-b border-slate-100 px-3 py-2 text-[11px] font-semibold text-slate-600">
+                              Действия
+                            </div>
+                            <div className="p-2 space-y-1">
+                              <Link
+                                href={`/requests/${item.id}/chat`}
+                                onClick={(event) => {
+                                  if (!canOpenChat) {
+                                    event.preventDefault();
+                                    return;
+                                  }
+                                  closeDetailsMenu(event);
+                                }}
+                                aria-disabled={!canOpenChat}
+                                title={
+                                  canOpenChat
+                                    ? "Открыть чат по заявке"
+                                    : "По закрытым заявкам переписка только для чтения."
+                                }
+                                className={`flex w-full items-center justify-between rounded-lg px-2 py-2 text-left text-[11px] transition ${
+                                  canOpenChat
+                                    ? "hover:bg-slate-50"
+                                    : "cursor-not-allowed text-slate-400"
+                                }`}
+                              >
+                                <span>Открыть чат</span>
+                                {!canOpenChat && (
+                                  <span className="text-[10px]">—</span>
+                                )}
+                              </Link>
+
+                              {canClose && (
+                                <button
+                                  type="button"
+                                  onClick={(event) => {
+                                    closeDetailsMenu(event);
+                                    void handleRowCloseRequest();
+                                  }}
+                                  className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-left text-[11px] transition hover:bg-slate-50"
+                                  title={
+                                    isExecutor
+                                      ? "Завершить заявку и перевести её в статус «Решена»"
+                                      : "Закрыть заявку и перевести её в статус «Решена»"
+                                  }
+                                >
+                                  <span>
+                                    {isExecutor ? "Завершить заявку" : "Закрыть заявку"}
+                                  </span>
+                                  <span className="text-[10px] text-slate-400">
+                                    ✓
+                                  </span>
+                                </button>
+                              )}
+
+                              {canReopen && (
+                                <button
+                                  type="button"
+                                  onClick={(event) => {
+                                    closeDetailsMenu(event);
+                                    void handleRowReopenRequest();
+                                  }}
+                                  className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-left text-[11px] transition hover:bg-slate-50"
+                                  title="Вернуть заявку из статуса «Решена» в статус «В работе»"
+                                >
+                                  <span>Вернуть в работу</span>
+                                  <span className="text-[10px] text-slate-400">
+                                    ↺
+                                  </span>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </details>
                       </td>
                     </tr>
                   );
@@ -457,6 +525,11 @@ export default function RequestsPage() {
               const canReopen =
                 isExecutor &&
                 item.status === 6;
+
+              const canOpenChat =
+                item.status != null &&
+                item.status !== 6 &&
+                item.status !== 7;
 
               const handleRowCloseRequest = async () => {
                 const confirmed = window.confirm(
@@ -535,10 +608,9 @@ export default function RequestsPage() {
               };
 
               return (
-                <Link
+                <div
                   key={item.id}
-                  href={`/requests/${item.id}`}
-                  className="block rounded-lg border border-slate-200 bg-white p-3 transition hover:border-sky-500/60 hover:bg-slate-50"
+                  className="rounded-lg border border-slate-200 bg-white p-3 transition hover:border-sky-500/60 hover:bg-slate-50"
                 >
                   <div className="mb-1 flex items-center justify-between gap-2">
                     <p className="text-[11px] text-slate-500">
@@ -550,43 +622,99 @@ export default function RequestsPage() {
                       {status.label}
                     </span>
                   </div>
-                  <p className="line-clamp-3 text-xs font-medium text-slate-900">
-                    {item.headers ?? "(без темы)"}
-                  </p>
+
+                  <Link
+                    href={`/requests/${item.id}`}
+                    className="block"
+                    aria-label={`Открыть заявку № ${item.index ?? "—"}`}
+                  >
+                    <p className="line-clamp-3 text-xs font-medium text-slate-900">
+                      {item.headers ?? "(без темы)"}
+                    </p>
+                  </Link>
+
                   <div className="mt-2 flex items-center justify-between gap-2 text-[10px] text-slate-500">
                     <span>Создана: {formatDate(item.creationDate)}</span>
-                    {canClose && (
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.preventDefault();
-                          void handleRowCloseRequest();
-                        }}
-                        className="inline-flex items-center rounded-full bg-emerald-500 px-2 py-1 text-[10px] font-medium text-white"
-                        title={
-                          isExecutor
-                            ? "Завершить заявку и перевести её в статус «Решена»"
-                            : "Закрыть заявку и перевести её в статус «Решена»"
-                        }
+                    <details className="relative">
+                      <summary
+                        className="inline-flex h-7 w-7 cursor-pointer list-none items-center justify-center rounded-full border border-slate-200 bg-white text-[12px] font-semibold text-slate-700 shadow-sm transition hover:border-sky-300 hover:text-sky-800"
+                        aria-label="Действия"
+                        title="Действия"
                       >
-                        {isExecutor ? "Завершить" : "Закрыть"}
-                      </button>
-                    )}
-                    {canReopen && (
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.preventDefault();
-                          void handleRowReopenRequest();
-                        }}
-                        className="inline-flex items-center rounded-full bg-amber-500 px-2 py-1 text-[10px] font-medium text-white"
-                        title="Вернуть заявку из статуса «Решена» в статус «В работе»"
-                      >
-                        В работу
-                      </button>
-                    )}
+                        ⋯
+                      </summary>
+                      <div className="absolute right-0 z-20 mt-2 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white text-xs text-slate-700 shadow-lg">
+                        <div className="border-b border-slate-100 px-3 py-2 text-[11px] font-semibold text-slate-600">
+                          Действия
+                        </div>
+                        <div className="p-2 space-y-1">
+                          <Link
+                            href={`/requests/${item.id}/chat`}
+                            onClick={(event) => {
+                              if (!canOpenChat) {
+                                event.preventDefault();
+                                return;
+                              }
+                              closeDetailsMenu(event);
+                            }}
+                            aria-disabled={!canOpenChat}
+                            title={
+                              canOpenChat
+                                ? "Открыть чат по заявке"
+                                : "По закрытым заявкам переписка только для чтения."
+                            }
+                            className={`flex w-full items-center justify-between rounded-lg px-2 py-2 text-left text-[11px] transition ${
+                              canOpenChat
+                                ? "hover:bg-slate-50"
+                                : "cursor-not-allowed text-slate-400"
+                            }`}
+                          >
+                            <span>Открыть чат</span>
+                            {!canOpenChat && (
+                              <span className="text-[10px]">—</span>
+                            )}
+                          </Link>
+
+                          {canClose && (
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                closeDetailsMenu(event);
+                                void handleRowCloseRequest();
+                              }}
+                              className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-left text-[11px] transition hover:bg-slate-50"
+                              title={
+                                isExecutor
+                                  ? "Завершить заявку и перевести её в статус «Решена»"
+                                  : "Закрыть заявку и перевести её в статус «Решена»"
+                              }
+                            >
+                              <span>
+                                {isExecutor ? "Завершить заявку" : "Закрыть заявку"}
+                              </span>
+                              <span className="text-[10px] text-slate-400">✓</span>
+                            </button>
+                          )}
+
+                          {canReopen && (
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                closeDetailsMenu(event);
+                                void handleRowReopenRequest();
+                              }}
+                              className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-left text-[11px] transition hover:bg-slate-50"
+                              title="Вернуть заявку из статуса «Решена» в статус «В работе»"
+                            >
+                              <span>Вернуть в работу</span>
+                              <span className="text-[10px] text-slate-400">↺</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </details>
                   </div>
-                </Link>
+                </div>
               );
             })}
         </div>
