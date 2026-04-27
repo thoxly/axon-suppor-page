@@ -6,6 +6,7 @@ interface TaskBreakdownRowProps {
   task: PlanningTask;
   dates: DateCell[];
   dayWidth: number;
+  labelWidth: number;
   mode: ViewMode;
   expanded: boolean;
   onToggle: () => void;
@@ -16,6 +17,7 @@ export function TaskBreakdownRow({
   task,
   dates,
   dayWidth,
+  labelWidth,
   mode,
   expanded,
   onToggle,
@@ -28,7 +30,8 @@ export function TaskBreakdownRow({
       <div className="flex h-8 border-b border-slate-200 text-[11px]">
         <button
           type="button"
-          className="flex w-72 items-center gap-2 border-r border-slate-300 bg-slate-50 px-3 text-left hover:bg-slate-100"
+          className="flex items-center gap-2 border-r border-slate-300 bg-slate-50 px-3 text-left hover:bg-slate-100"
+          style={{ width: labelWidth, minWidth: labelWidth }}
           onClick={onToggle}
         >
           <span className="text-slate-500">{expanded ? "▾" : "▸"}</span>
@@ -56,7 +59,10 @@ export function TaskBreakdownRow({
       </div>
       {expanded && (
         <div className="flex h-9 border-b border-slate-200 text-[11px]">
-          <div className="flex w-72 items-center border-r border-slate-300 bg-white px-4 text-slate-500">
+          <div
+            className="flex items-center border-r border-slate-300 bg-white px-4 text-slate-500"
+            style={{ width: labelWidth, minWidth: labelWidth }}
+          >
             Daily_LC (шаг 0.1)
           </div>
           <div className="flex">

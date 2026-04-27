@@ -54,6 +54,7 @@ export interface PlannerSnapshot {
   tasks: PlanningTask[];
   columns: ColumnConfig[];
   scale: TimelineScale;
+  engineerIds?: string[];
 }
 
 export type EngineerLoadMap = Record<string, Record<string, number>>;

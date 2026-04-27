@@ -12,7 +12,7 @@ import {
   normalizeTask,
   updateTaskDailyValue,
 } from "@/lib/planning";
-import { clearPlannerState, loadPlannerState, savePlannerState } from "@/lib/storage";
+import { loadPlannerState, savePlannerState } from "@/lib/storage";
 import { ColumnConfig, PlanningTask, TimelineScale, ViewMode } from "@/types/planning";
 
 interface GanttPlannerProps {
@@ -24,9 +24,11 @@ const dayWidthByScale: Record<TimelineScale, number> = {
   week: 18,
   month: 10,
 };
+const TASK_DRAG_HANDLE_WIDTH = 28;
 
 export function GanttPlanner({ embed = false }: GanttPlannerProps) {
   const [tasks, setTasks] = useState<PlanningTask[]>(() => initialTasks.map(normalizeTask));
+  const [engineerList, setEngineerList] = useState(engineers);
   const [columns, setColumns] = useState<ColumnConfig[]>(defaultColumns);
   const [scale, setScale] = useState<TimelineScale>("day");
   const [viewMode, setViewMode] = useState<ViewMode>("hours");
@@ -34,7 +36,6 @@ export function GanttPlanner({ embed = false }: GanttPlannerProps) {
   const [expandedEngineers, setExpandedEngineers] = useState<string[]>([]);
   const [expandedTasks, setExpandedTasks] = useState<string[]>([]);
   const [sharedScrollLeft, setSharedScrollLeft] = useState(0);
-  const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
     const persisted = loadPlannerState();
@@ -42,17 +43,26 @@ export function GanttPlanner({ embed = false }: GanttPlannerProps) {
     setTasks(persisted.tasks.map(normalizeTask));
     setColumns(persisted.columns);
     setScale(persisted.scale);
+    if (persisted.engineerIds?.length) {
+      const source = new Map(engineers.map((engineer) => [engineer.id, engineer]));
+      const ordered = persisted.engineerIds
+        .map((id) => source.get(id))
+        .filter((item): item is (typeof engineers)[number] => Boolean(item));
+      const missed = engineers.filter(
+        (engineer) => !ordered.find((orderedEngineer) => orderedEngineer.id === engineer.id)
+      );
+      setEngineerList([...ordered, ...missed]);
+    }
   }, []);
 
   useEffect(() => {
-    savePlannerState({ tasks, columns, scale });
-  }, [tasks, columns, scale]);
-
-  useEffect(() => {
-    if (!toast) return;
-    const timer = window.setTimeout(() => setToast(null), 2200);
-    return () => window.clearTimeout(timer);
-  }, [toast]);
+    savePlannerState({
+      tasks,
+      columns,
+      scale,
+      engineerIds: engineerList.map((engineer) => engineer.id),
+    });
+  }, [tasks, columns, scale, engineerList]);
 
   const dates = useMemo(
     () => buildDateCells(dateRange.start, dateRange.end),
@@ -60,8 +70,8 @@ export function GanttPlanner({ embed = false }: GanttPlannerProps) {
   );
   const dayWidth = dayWidthByScale[scale];
   const authorMap = useMemo(
-    () => Object.fromEntries(engineers.map((engineer) => [engineer.id, engineer.name])),
-    []
+    () => Object.fromEntries(engineerList.map((engineer) => [engineer.id, engineer.name])),
+    [engineerList]
   );
 
   const filteredTasks = useMemo(() => {
@@ -93,7 +103,9 @@ export function GanttPlanner({ embed = false }: GanttPlannerProps) {
   );
 
   const tableWidth = useMemo(
-    () => columns.filter((column) => column.visible).reduce((sum, column) => sum + column.width, 0),
+    () =>
+      TASK_DRAG_HANDLE_WIDTH +
+      columns.filter((column) => column.visible).reduce((sum, column) => sum + column.width, 0),
     [columns]
   );
 
@@ -106,56 +118,11 @@ export function GanttPlanner({ embed = false }: GanttPlannerProps) {
   return (
     <div className="flex h-screen w-screen flex-col bg-slate-100 text-slate-900">
       {!embed && (
-        <div className="flex h-14 items-center gap-2 border-b border-slate-300 bg-white px-3 shadow-sm">
-          <h1 className="mr-2 text-sm font-semibold">
+        <div className="flex h-14 items-center gap-3 border-b border-slate-300 bg-white px-4 shadow-sm">
+          <h1 className="text-sm font-semibold tracking-tight">
             ELMA365 Gantt / Resource Planning Demo
           </h1>
-          <button
-            type="button"
-            className="rounded border border-slate-300 bg-white px-2 py-1 text-xs hover:bg-slate-50"
-            onClick={() => {
-              savePlannerState({ tasks, columns, scale });
-              setToast("Изменения сохранены локально");
-            }}
-          >
-            Сохранить
-          </button>
-          <button
-            type="button"
-            className="rounded border border-slate-300 bg-white px-2 py-1 text-xs hover:bg-slate-50"
-            onClick={() => {
-              clearPlannerState();
-              setTasks(initialTasks.map(normalizeTask));
-              setColumns(defaultColumns);
-              setScale("day");
-              setToast("Demo data сброшены");
-            }}
-          >
-            Сбросить
-          </button>
-          <button
-            type="button"
-            className="rounded border border-slate-300 bg-white px-2 py-1 text-xs hover:bg-slate-50"
-            onClick={() => {
-              const blob = new Blob([JSON.stringify({ tasks, columns }, null, 2)], { type: "application/json" });
-              const url = URL.createObjectURL(blob);
-              const link = document.createElement("a");
-              link.href = url;
-              link.download = "elma-gantt-demo.json";
-              link.click();
-              URL.revokeObjectURL(url);
-            }}
-          >
-            Экспорт JSON
-          </button>
-          <button
-            type="button"
-            className="rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs text-emerald-700 hover:bg-emerald-100"
-            onClick={() => setToast("Изменения подготовлены к отправке в ELMA365 API")}
-          >
-            Имитация сохранения в ELMA
-          </button>
-          <div className="ml-2 flex items-center rounded border border-slate-300 bg-white p-1 text-xs">
+          <div className="ml-2 flex items-center rounded border border-slate-300 bg-slate-50 p-1 text-xs">
             {(["day", "week", "month"] as TimelineScale[]).map((item) => (
               <button
                 key={item}
@@ -173,7 +140,7 @@ export function GanttPlanner({ embed = false }: GanttPlannerProps) {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Поиск по задачам..."
-            className="ml-auto h-8 w-60 rounded border border-slate-300 px-2 text-xs outline-none focus:border-slate-500"
+            className="ml-auto h-8 w-72 rounded border border-slate-300 bg-white px-2 text-xs outline-none focus:border-slate-500"
           />
         </div>
       )}
@@ -209,11 +176,22 @@ export function GanttPlanner({ embed = false }: GanttPlannerProps) {
                 return next;
               });
             }}
+            onReorderTask={(fromTaskId, toTaskId) => {
+              setTasks((previous) => {
+                const fromIndex = previous.findIndex((task) => task.id === fromTaskId);
+                const toIndex = previous.findIndex((task) => task.id === toTaskId);
+                if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return previous;
+                const next = [...previous];
+                const [moved] = next.splice(fromIndex, 1);
+                next.splice(toIndex, 0, moved);
+                return next;
+              });
+            }}
           />
           <GanttGrid
             tasks={filteredTasks}
             dates={dates}
-            engineers={engineers}
+            engineers={engineerList}
             dayWidth={dayWidth}
             scrollLeft={sharedScrollLeft}
             onScroll={setSharedScrollLeft}
@@ -223,26 +201,10 @@ export function GanttPlanner({ embed = false }: GanttPlannerProps) {
       </div>
 
       {!embed && (
-        <div className="flex h-8 items-center gap-4 border-y border-slate-300 bg-slate-200 px-3 text-xs text-slate-700">
-          <span className="font-semibold">Легенда:</span>
-          <span className="inline-flex items-center gap-1">
-            <span className="h-2 w-4 rounded bg-emerald-500" />
-            Нормальная загрузка
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <span className="h-2 w-4 rounded bg-red-300" />
-            Перегрузка
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <span className="h-2 w-4 rounded bg-slate-300" />
-            Выходной
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <span className="h-2 w-[2px] bg-red-500" />
-            Сегодня
-          </span>
+        <div className="flex h-8 items-center border-y border-slate-300 bg-slate-100 px-3 text-xs text-slate-600">
+          <span className="text-slate-500">Ресурсная ведомость</span>
           <div className="ml-auto flex items-center gap-1">
-            <span>Показ:</span>
+            <span className="mr-1">Режим:</span>
             <button
               type="button"
               onClick={() => setViewMode("hours")}
@@ -263,10 +225,11 @@ export function GanttPlanner({ embed = false }: GanttPlannerProps) {
 
       <div className={`${embed ? "h-full" : "h-[40%]"} min-h-[220px]`}>
         <ResourceMatrix
-          engineers={engineers}
+          engineers={engineerList}
           tasks={filteredTasks}
           dates={dates}
           dayWidth={dayWidth}
+          labelWidth={tableWidth}
           mode={viewMode}
           loadMap={loadMap}
           cardMap={cardMap}
@@ -293,16 +256,21 @@ export function GanttPlanner({ embed = false }: GanttPlannerProps) {
               )
             );
           }}
+          onReorderEngineer={(fromEngineerId, toEngineerId) => {
+            setEngineerList((previous) => {
+              const fromIndex = previous.findIndex((engineer) => engineer.id === fromEngineerId);
+              const toIndex = previous.findIndex((engineer) => engineer.id === toEngineerId);
+              if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return previous;
+              const next = [...previous];
+              const [moved] = next.splice(fromIndex, 1);
+              next.splice(toIndex, 0, moved);
+              return next;
+            });
+          }}
           scrollLeft={sharedScrollLeft}
           onScroll={setSharedScrollLeft}
         />
       </div>
-
-      {toast && (
-        <div className="pointer-events-none fixed right-3 top-3 z-50 rounded bg-slate-900 px-3 py-2 text-xs text-white shadow-xl">
-          {toast}
-        </div>
-      )}
     </div>
   );
 }

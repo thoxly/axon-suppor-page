@@ -10,6 +10,7 @@ interface ResourceMatrixProps {
   tasks: PlanningTask[];
   dates: DateCell[];
   dayWidth: number;
+  labelWidth: number;
   mode: ViewMode;
   loadMap: Record<string, Record<string, number>>;
   cardMap: Record<string, Record<string, number>>;
@@ -18,6 +19,7 @@ interface ResourceMatrixProps {
   onToggleEngineer: (id: string) => void;
   onToggleTask: (id: string) => void;
   onDailyLcChange: (taskId: string, date: string, value: number) => void;
+  onReorderEngineer: (fromEngineerId: string, toEngineerId: string) => void;
   scrollLeft: number;
   onScroll: (scrollLeft: number) => void;
 }
@@ -27,6 +29,7 @@ export function ResourceMatrix({
   tasks,
   dates,
   dayWidth,
+  labelWidth,
   mode,
   loadMap,
   cardMap,
@@ -35,10 +38,12 @@ export function ResourceMatrix({
   onToggleEngineer,
   onToggleTask,
   onDailyLcChange,
+  onReorderEngineer,
   scrollLeft,
   onScroll,
 }: ResourceMatrixProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const draggedEngineerRef = useRef<string | null>(null);
   const width = dates.length * dayWidth;
   useEffect(() => {
     const node = containerRef.current;
@@ -54,9 +59,12 @@ export function ResourceMatrix({
       className="h-full overflow-auto border-t border-slate-300 bg-white"
       onScroll={(event) => onScroll(event.currentTarget.scrollLeft)}
     >
-      <div style={{ minWidth: 288 + width }}>
+      <div style={{ minWidth: labelWidth + width }}>
         <div className="sticky top-0 z-20 flex h-9 border-b border-slate-300 bg-slate-100 text-xs font-semibold text-slate-700">
-          <div className="flex w-72 items-center border-r border-slate-300 px-2">
+          <div
+            className="flex items-center border-r border-slate-300 px-2"
+            style={{ width: labelWidth, minWidth: labelWidth }}
+          >
             Ресурсное планирование
           </div>
           <div className="flex" style={{ width }}>
@@ -84,9 +92,19 @@ export function ResourceMatrix({
                 dates={dates}
                 values={values}
                 dayWidth={dayWidth}
+                labelWidth={labelWidth}
                 mode={mode}
                 expanded={expanded}
                 onToggle={() => onToggleEngineer(engineer.id)}
+                onDragStart={() => {
+                  draggedEngineerRef.current = engineer.id;
+                }}
+                onDropRow={() => {
+                  const fromEngineerId = draggedEngineerRef.current;
+                  if (!fromEngineerId || fromEngineerId === engineer.id) return;
+                  onReorderEngineer(fromEngineerId, engineer.id);
+                  draggedEngineerRef.current = null;
+                }}
               />
               {expanded &&
                 engineerTasks.map((task) => (
@@ -95,6 +113,7 @@ export function ResourceMatrix({
                     task={task}
                     dates={dates}
                     dayWidth={dayWidth}
+                    labelWidth={labelWidth}
                     mode={mode}
                     expanded={expandedTasks.includes(task.id)}
                     onToggle={() => onToggleTask(task.id)}

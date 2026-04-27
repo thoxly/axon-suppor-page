@@ -7,9 +7,12 @@ interface ResourceRowProps {
   dates: DateCell[];
   values: Record<string, number>;
   dayWidth: number;
+  labelWidth: number;
   mode: ViewMode;
   expanded: boolean;
   onToggle: () => void;
+  onDragStart: () => void;
+  onDropRow: () => void;
 }
 
 export function ResourceRow({
@@ -17,17 +20,36 @@ export function ResourceRow({
   dates,
   values,
   dayWidth,
+  labelWidth,
   mode,
   expanded,
   onToggle,
+  onDragStart,
+  onDropRow,
 }: ResourceRowProps) {
   return (
-    <div className="flex h-9 border-b border-slate-200 text-[11px]">
+    <div
+      className="flex h-9 border-b border-slate-200 text-[11px]"
+      onDragOver={(event) => event.preventDefault()}
+      onDrop={(event) => {
+        event.preventDefault();
+        onDropRow();
+      }}
+    >
       <button
         type="button"
-        className="flex w-72 items-center gap-2 border-r border-slate-300 bg-white px-2 text-left hover:bg-slate-50"
+        className="flex items-center gap-2 border-r border-slate-300 bg-white px-2 text-left hover:bg-slate-50"
+        style={{ width: labelWidth, minWidth: labelWidth }}
         onClick={onToggle}
       >
+        <span
+          draggable
+          onDragStart={() => onDragStart()}
+          className="cursor-grab text-slate-400 active:cursor-grabbing"
+          title="Перетащите для изменения порядка сотрудника"
+        >
+          ⋮⋮
+        </span>
         <span
           className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-semibold text-white"
           style={{ backgroundColor: engineer.color }}

@@ -9,10 +9,12 @@ interface TaskTableProps {
   onToggleColumn: (key: string) => void;
   onResizeColumn: (key: string, width: number) => void;
   onMoveColumn: (key: string, direction: "left" | "right") => void;
+  onReorderTask: (fromTaskId: string, toTaskId: string) => void;
 }
 
 const rowClass =
   "h-9 border-b border-slate-200 px-2 py-1 text-[11px] text-slate-700 truncate";
+const DRAG_COLUMN_WIDTH = 28;
 
 function renderValue(task: PlanningTask, key: keyof PlanningTask, authorNames: Record<string, string>) {
   const value = task[key];
@@ -35,6 +37,7 @@ export function TaskTable({
   onToggleColumn,
   onResizeColumn,
   onMoveColumn,
+  onReorderTask,
 }: TaskTableProps) {
   const visibleColumns = columns.filter((column) => column.visible);
 
@@ -82,6 +85,12 @@ export function TaskTable({
           </details>
         </div>
         <div className="flex border-t border-slate-300 bg-slate-50">
+          <div
+            className="border-r border-slate-300 px-2 py-1 text-[11px] font-semibold text-slate-500"
+            style={{ width: DRAG_COLUMN_WIDTH, minWidth: DRAG_COLUMN_WIDTH }}
+          >
+            ↕
+          </div>
           {visibleColumns.map((column) => (
             <div
               key={column.key}
@@ -105,7 +114,34 @@ export function TaskTable({
       </div>
       <div>
         {tasks.map((task) => (
-          <div key={task.id} className="flex bg-white even:bg-slate-50/60">
+          <div
+            key={task.id}
+            className="flex bg-white even:bg-slate-50/60"
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={(event) => {
+              event.preventDefault();
+              const fromTaskId = event.dataTransfer.getData("text/task-id");
+              if (!fromTaskId || fromTaskId === task.id) return;
+              onReorderTask(fromTaskId, task.id);
+            }}
+          >
+            <div
+              className="flex h-9 items-center border-b border-slate-200 border-r border-slate-300 px-2 text-slate-400"
+              style={{ width: DRAG_COLUMN_WIDTH, minWidth: DRAG_COLUMN_WIDTH }}
+            >
+              <button
+                type="button"
+                draggable
+                onDragStart={(event) => {
+                  event.dataTransfer.effectAllowed = "move";
+                  event.dataTransfer.setData("text/task-id", task.id);
+                }}
+                className="cursor-grab text-xs active:cursor-grabbing"
+                title="Перетащите для изменения порядка строки"
+              >
+                ⋮⋮
+              </button>
+            </div>
             {visibleColumns.map((column) => (
               <div
                 key={`${task.id}-${column.key}`}

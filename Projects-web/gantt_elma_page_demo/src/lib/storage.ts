@@ -6,6 +6,7 @@ interface PersistedState {
   tasks: PlanningTask[];
   columns: ColumnConfig[];
   scale: TimelineScale;
+  engineerIds?: string[];
 }
 
 export function loadPlannerState(): PersistedState | null {
