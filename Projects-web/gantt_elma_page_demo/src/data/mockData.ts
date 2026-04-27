@@ -1,5 +1,5 @@
 import { buildUniformDailyLc } from "@/lib/planning";
-import { ColumnConfig, Engineer, PlanningTask } from "@/types/planning";
+import { ColumnConfig, Dependency, Engineer, PlanningTask } from "@/types/planning";
 
 export const engineers: Engineer[] = [
   { id: "eng-1", name: "Александр Вызулин", shortName: "АВ", color: "#16a34a", capacity: 8 },
@@ -43,21 +43,28 @@ export const dateRange = {
 };
 
 export const defaultColumns: ColumnConfig[] = [
-  { key: "idPlan", label: "ID_Plan", width: 90, visible: true },
-  { key: "productType", label: "Product_Type", width: 150, visible: true },
-  { key: "projectType", label: "Project_Type", width: 120, visible: true },
-  { key: "actionType", label: "Action_Type", width: 160, visible: true },
-  { key: "refLc", label: "Ref_LC", width: 90, visible: true },
-  { key: "currentLc", label: "Current_LC", width: 110, visible: true },
-  { key: "projectId3S", label: "Project_ID_3S", width: 120, visible: false },
-  { key: "seg", label: "Seg", width: 120, visible: true },
-  { key: "customer", label: "Customer", width: 180, visible: true },
-  { key: "projectName", label: "Project_Name", width: 180, visible: true },
-  { key: "endDate", label: "EndDate", width: 110, visible: false },
-  { key: "startDate", label: "StartDate", width: 110, visible: true },
-  { key: "finalDate", label: "FinalDate", width: 110, visible: true },
-  { key: "authorId", label: "Author", width: 120, visible: true },
-  { key: "notes", label: "Notes", width: 220, visible: false },
+  { key: "idPlan", label: "ID", width: 70, visible: true },
+  { key: "productType", label: "Название", width: 130, visible: true },
+  { key: "projectType", label: "Объект", width: 110, visible: true },
+  { key: "customer", label: "Потребитель", width: 130, visible: true },
+  { key: "startDate", label: "Нач. план.", width: 90, visible: true },
+  { key: "finalDate", label: "Срок", width: 90, visible: true },
+  { key: "refLc", label: "Труд.", width: 70, visible: true },
+  { key: "authorId", label: "Исполнитель", width: 110, visible: true },
+  { key: "actionType", label: "Действие", width: 130, visible: false },
+  { key: "currentLc", label: "Тек. труд.", width: 90, visible: false },
+  { key: "projectId3S", label: "Проект 3S", width: 110, visible: false },
+  { key: "seg", label: "Сегмент", width: 100, visible: false },
+  { key: "projectName", label: "Проект", width: 150, visible: false },
+  { key: "endDate", label: "Плановый срок", width: 110, visible: false },
+  { key: "notes", label: "Примечания", width: 200, visible: false },
+];
+
+export const defaultDependencies: Dependency[] = [
+  { id: "dep-1", fromTaskId: "task-1", toTaskId: "task-2", type: "FS" },
+  { id: "dep-2", fromTaskId: "task-2", toTaskId: "task-4", type: "FS" },
+  { id: "dep-3", fromTaskId: "task-3", toTaskId: "task-5", type: "SS" },
+  { id: "dep-4", fromTaskId: "task-6", toTaskId: "task-7", type: "FF" },
 ];
 
 export const initialTasks: PlanningTask[] = Array.from({ length: 20 }).map((_, i) => {

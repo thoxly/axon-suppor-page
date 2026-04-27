@@ -1,4 +1,12 @@
 export type ViewMode = "hours" | "cards";
+export type DependencyType = "FS" | "SS" | "FF" | "SF";
+
+export interface Dependency {
+  id: string;
+  fromTaskId: string;
+  toTaskId: string;
+  type: DependencyType;
+}
 export type TimelineScale = "day" | "week" | "month";
 
 export interface DailyLoad {
@@ -55,6 +63,7 @@ export interface PlannerSnapshot {
   columns: ColumnConfig[];
   scale: TimelineScale;
   engineerIds?: string[];
+  dependencies?: Dependency[];
 }
 
 export type EngineerLoadMap = Record<string, Record<string, number>>;

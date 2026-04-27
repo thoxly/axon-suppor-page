@@ -1,12 +1,13 @@
-import { ColumnConfig, PlannerSnapshot, PlanningTask, TimelineScale } from "@/types/planning";
+import { ColumnConfig, Dependency, PlannerSnapshot, PlanningTask, TimelineScale } from "@/types/planning";
 
-const STORAGE_KEY = "elma-gantt-demo-v1";
+const STORAGE_KEY = "elma-gantt-demo-v3";
 
 interface PersistedState {
   tasks: PlanningTask[];
   columns: ColumnConfig[];
   scale: TimelineScale;
   engineerIds?: string[];
+  dependencies?: Dependency[];
 }
 
 export function loadPlannerState(): PersistedState | null {

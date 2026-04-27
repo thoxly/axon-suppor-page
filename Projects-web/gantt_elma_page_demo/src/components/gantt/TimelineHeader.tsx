@@ -22,24 +22,26 @@ export function TimelineHeader({ dates, dayWidth }: TimelineHeaderProps) {
   );
 
   return (
-    <div className="sticky top-0 z-30 border-b border-slate-300 bg-slate-100">
-      <div className="flex border-b border-slate-300 text-[11px] font-semibold uppercase tracking-wide text-slate-600">
+    <div className="sticky top-0 z-30 border-b border-slate-200 bg-slate-50">
+      {/* Month row */}
+      <div className="flex border-b border-slate-200 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
         {groups.map((group) => (
           <div
             key={group.key}
-            className="border-r border-slate-300 px-2 py-1"
+            className="border-r border-slate-200 px-2 py-1"
             style={{ width: group.count * dayWidth }}
           >
             {group.label}
           </div>
         ))}
       </div>
-      <div className="flex text-[11px] text-slate-700">
+      {/* Day row */}
+      <div className="flex text-[11px] text-slate-600">
         {dates.map((date) => (
           <div
             key={date.date}
-            className={`flex h-7 items-center justify-center border-r border-slate-300 ${
-              date.isWeekend ? "bg-slate-200" : "bg-slate-50"
+            className={`flex h-7 items-center justify-center border-r border-slate-200 ${
+              date.isWeekend ? "bg-slate-100 text-slate-400" : "bg-white"
             }`}
             style={{ width: dayWidth }}
             title={date.date}

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { ColumnConfig, PlanningTask } from "@/types/planning";
 
 interface TaskTableProps {
@@ -13,7 +14,7 @@ interface TaskTableProps {
 }
 
 const rowClass =
-  "h-9 border-b border-slate-200 px-2 py-1 text-[11px] text-slate-700 truncate";
+  "h-9 border-b border-slate-100 px-2 py-1 text-[11px] text-slate-700 truncate";
 const DRAG_COLUMN_WIDTH = 28;
 
 function renderValue(task: PlanningTask, key: keyof PlanningTask, authorNames: Record<string, string>) {
@@ -40,61 +41,132 @@ export function TaskTable({
   onReorderTask,
 }: TaskTableProps) {
   const visibleColumns = columns.filter((column) => column.visible);
+  const [columnsOpen, setColumnsOpen] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!columnsOpen) return;
+    const handleClick = (event: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
+        setColumnsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [columnsOpen]);
 
   return (
-    <div className="h-full overflow-auto border-r border-slate-300 bg-white">
-      <div className="sticky top-0 z-20 border-b border-slate-300 bg-slate-100">
-        <div className="flex items-center justify-between px-2 py-2 text-xs font-semibold text-slate-700">
-          <span>Список задач</span>
-          <details className="relative">
-            <summary className="cursor-pointer rounded border border-slate-300 bg-white px-2 py-1">
+    <div className="h-full overflow-auto border-r border-slate-200 bg-white">
+      {/* Sticky header */}
+      <div className="sticky top-0 z-20 border-b border-slate-200 bg-white">
+        {/* Top bar: title + column settings */}
+        <div className="flex h-[28px] items-center justify-between border-b border-slate-100 px-3">
+          <span className="text-[11px] font-semibold text-slate-600">Список задач</span>
+          <div className="relative" ref={panelRef}>
+            <button
+              type="button"
+              onClick={() => setColumnsOpen((prev) => !prev)}
+              className={`flex items-center gap-1.5 rounded px-2 py-1 text-[11px] font-medium transition-colors ${
+                columnsOpen
+                  ? "bg-slate-100 text-slate-800"
+                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+              }`}
+              title="Управление колонками"
+            >
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 16 16"
+                fill="none"
+                aria-hidden="true"
+              >
+                <rect x="1" y="2" width="4" height="12" rx="1" stroke="currentColor" strokeWidth="1.4" />
+                <rect x="6" y="2" width="4" height="12" rx="1" stroke="currentColor" strokeWidth="1.4" />
+                <rect x="11" y="2" width="4" height="12" rx="1" stroke="currentColor" strokeWidth="1.4" />
+              </svg>
               Колонки
-            </summary>
-            <div className="absolute right-0 z-30 mt-1 max-h-64 w-72 overflow-auto rounded border border-slate-300 bg-white p-2 shadow-lg">
-              {columns.map((column) => (
-                <div key={column.key} className="mb-1 rounded border border-slate-200 p-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <label className="flex items-center gap-2 text-xs">
+            </button>
+
+            {columnsOpen && (
+              <div className="absolute right-0 top-full z-40 mt-1.5 w-64 rounded-lg border border-slate-200 bg-white shadow-xl">
+                <div className="border-b border-slate-100 px-3 py-2">
+                  <p className="text-[11px] font-semibold text-slate-700">Управление колонками</p>
+                  <p className="mt-0.5 text-[10px] text-slate-400">
+                    Видимость и порядок колонок
+                  </p>
+                </div>
+                <div className="max-h-72 overflow-y-auto py-1">
+                  {columns.map((column, idx) => (
+                    <label
+                      key={column.key}
+                      className="flex cursor-pointer items-center gap-2.5 px-3 py-1.5 hover:bg-slate-50"
+                    >
                       <input
                         type="checkbox"
                         checked={column.visible}
                         onChange={() => onToggleColumn(column.key)}
+                        className="h-3.5 w-3.5 cursor-pointer accent-slate-700"
                       />
-                      {column.label}
+                      <span
+                        className={`flex-1 text-[12px] ${
+                          column.visible ? "text-slate-700" : "text-slate-400"
+                        }`}
+                      >
+                        {column.label}
+                      </span>
+                      <div className="flex items-center gap-0.5">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            onMoveColumn(column.key, "left");
+                          }}
+                          disabled={idx === 0}
+                          className="flex h-5 w-5 items-center justify-center rounded text-[11px] text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:pointer-events-none disabled:opacity-30"
+                          title="Переместить левее"
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            onMoveColumn(column.key, "right");
+                          }}
+                          disabled={idx === columns.length - 1}
+                          className="flex h-5 w-5 items-center justify-center rounded text-[11px] text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:pointer-events-none disabled:opacity-30"
+                          title="Переместить правее"
+                        >
+                          ↓
+                        </button>
+                      </div>
                     </label>
-                    <div className="flex gap-1">
-                      <button
-                        type="button"
-                        onClick={() => onMoveColumn(column.key, "left")}
-                        className="rounded border border-slate-300 px-1 text-[10px]"
-                      >
-                        ←
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onMoveColumn(column.key, "right")}
-                        className="rounded border border-slate-300 px-1 text-[10px]"
-                      >
-                        →
-                      </button>
-                    </div>
-                  </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </details>
-        </div>
-        <div className="flex border-t border-slate-300 bg-slate-50">
-          <div
-            className="border-r border-slate-300 px-2 py-1 text-[11px] font-semibold text-slate-500"
-            style={{ width: DRAG_COLUMN_WIDTH, minWidth: DRAG_COLUMN_WIDTH }}
-          >
-            ↕
+                <div className="border-t border-slate-100 px-3 py-2">
+                  <button
+                    type="button"
+                    onClick={() => setColumnsOpen(false)}
+                    className="w-full rounded-md bg-slate-800 py-1.5 text-[11px] font-medium text-white hover:bg-slate-700"
+                  >
+                    Готово
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
+        </div>
+
+        {/* Column headers row */}
+        <div className="flex bg-slate-50 text-[11px] font-semibold text-slate-500">
+          <div
+            className="border-r border-slate-200 px-2 py-1.5"
+            style={{ width: DRAG_COLUMN_WIDTH, minWidth: DRAG_COLUMN_WIDTH }}
+          />
           {visibleColumns.map((column) => (
             <div
               key={column.key}
-              className="group relative border-r border-slate-300 px-2 py-1 text-[11px] font-semibold text-slate-600"
+              className="group relative border-r border-slate-200 px-2 py-1.5"
               style={{ width: column.width, minWidth: 70 }}
             >
               {column.label}
@@ -112,11 +184,13 @@ export function TaskTable({
           ))}
         </div>
       </div>
+
+      {/* Task rows */}
       <div>
         {tasks.map((task) => (
           <div
             key={task.id}
-            className="flex bg-white even:bg-slate-50/60"
+            className="flex bg-white even:bg-slate-50/50"
             onDragOver={(event) => event.preventDefault()}
             onDrop={(event) => {
               event.preventDefault();
@@ -126,7 +200,7 @@ export function TaskTable({
             }}
           >
             <div
-              className="flex h-9 items-center border-b border-slate-200 border-r border-slate-300 px-2 text-slate-400"
+              className="flex h-9 items-center border-b border-r border-slate-200 px-2 text-slate-300"
               style={{ width: DRAG_COLUMN_WIDTH, minWidth: DRAG_COLUMN_WIDTH }}
             >
               <button
@@ -136,7 +210,7 @@ export function TaskTable({
                   event.dataTransfer.effectAllowed = "move";
                   event.dataTransfer.setData("text/task-id", task.id);
                 }}
-                className="cursor-grab text-xs active:cursor-grabbing"
+                className="cursor-grab text-xs leading-none active:cursor-grabbing"
                 title="Перетащите для изменения порядка строки"
               >
                 ⋮⋮

@@ -45,6 +45,7 @@ export function ResourceMatrix({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const draggedEngineerRef = useRef<string | null>(null);
   const width = dates.length * dayWidth;
+
   useEffect(() => {
     const node = containerRef.current;
     if (!node) return;
@@ -53,34 +54,71 @@ export function ResourceMatrix({
     }
   }, [scrollLeft]);
 
+  const monthGroups = dates.reduce<Array<{ key: string; label: string; count: number }>>(
+    (acc, date) => {
+      const prev = acc[acc.length - 1];
+      if (!prev || prev.key !== date.monthKey) {
+        acc.push({ key: date.monthKey, label: date.monthLabel, count: 1 });
+      } else {
+        prev.count += 1;
+      }
+      return acc;
+    },
+    []
+  );
+
   return (
     <div
       ref={containerRef}
-      className="h-full overflow-auto border-t border-slate-300 bg-white"
+      className="h-full overflow-auto border-t border-slate-200 bg-white"
       onScroll={(event) => onScroll(event.currentTarget.scrollLeft)}
     >
       <div style={{ minWidth: labelWidth + width }}>
-        <div className="sticky top-0 z-20 flex h-9 border-b border-slate-300 bg-slate-100 text-xs font-semibold text-slate-700">
-          <div
-            className="flex items-center border-r border-slate-300 px-2"
-            style={{ width: labelWidth, minWidth: labelWidth }}
-          >
-            Ресурсное планирование
+        {/* 2-level sticky header matching TimelineHeader */}
+        <div className="sticky top-0 z-20 border-b border-slate-200 bg-slate-50">
+          {/* Row 1: label + month groups */}
+          <div className="flex border-b border-slate-200 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+            <div
+              className="flex items-center border-r border-slate-200 px-3 text-[11px] font-semibold normal-case tracking-normal text-slate-600"
+              style={{ width: labelWidth, minWidth: labelWidth }}
+            >
+              Ресурсная ведомость
+            </div>
+            <div className="flex">
+              {monthGroups.map((group) => (
+                <div
+                  key={group.key}
+                  className="border-r border-slate-200 px-2 py-1"
+                  style={{ width: group.count * dayWidth }}
+                >
+                  {group.label}
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="flex" style={{ width }}>
-            {dates.map((date) => (
-              <div
-                key={`header-${date.date}`}
-                className={`flex items-center justify-center border-r border-slate-300 ${
-                  date.isWeekend ? "bg-slate-200" : "bg-slate-50"
-                }`}
-                style={{ width: dayWidth }}
-              >
-                {date.day}
-              </div>
-            ))}
+          {/* Row 2: empty label spacer + day numbers */}
+          <div className="flex text-[11px] text-slate-600">
+            <div
+              className="border-r border-slate-200"
+              style={{ width: labelWidth, minWidth: labelWidth }}
+            />
+            <div className="flex">
+              {dates.map((date) => (
+                <div
+                  key={`header-${date.date}`}
+                  className={`flex h-7 items-center justify-center border-r border-slate-200 ${
+                    date.isWeekend ? "bg-slate-100 text-slate-400" : "bg-white"
+                  }`}
+                  style={{ width: dayWidth }}
+                >
+                  {date.day}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
+
+        {/* Engineer rows */}
         {engineers.map((engineer) => {
           const engineerTasks = tasks.filter((task) => task.authorId === engineer.id);
           const expanded = expandedEngineers.includes(engineer.id);
